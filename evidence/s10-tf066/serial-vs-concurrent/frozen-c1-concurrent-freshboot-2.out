@@ -1,0 +1,27 @@
+url=http://127.0.0.1:8888/v1/chat/completions model=TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP max_tokens=200 runs=3 concurrency=[1] phases=['prose', 'structured']
+phase=prose c=1 run=1 wall=2.28s agg=40.10 tok/s per_stream=[40.11] ttft=[0.059]
+phase=prose c=1 run=2 wall=1.42s agg=65.60 tok/s per_stream=[65.62] ttft=[0.059]
+phase=prose c=1 run=3 wall=1.40s agg=66.33 tok/s per_stream=[66.36] ttft=[0.056]
+phase=structured c=1 run=1 wall=1.47s agg=142.20 tok/s per_stream=[142.27] ttft=[0.072]
+phase=structured c=1 run=2 wall=0.90s agg=239.43 tok/s per_stream=[239.57] ttft=[0.073]
+phase=structured c=1 run=3 wall=0.90s agg=240.09 tok/s per_stream=[240.19] ttft=[0.070]
+SUMMARY [
+  {
+    "phase": "prose",
+    "concurrency": 1,
+    "median_decode_tok_s": 65.61975697220404,
+    "median_ttft_s": 0.05903222300003108,
+    "median_agg_tok_s": 65.60012837929978,
+    "median_completion_tokens": 90,
+    "n": 3
+  },
+  {
+    "phase": "structured",
+    "concurrency": 1,
+    "median_decode_tok_s": 239.5699482026702,
+    "median_ttft_s": 0.07178733499949885,
+    "median_agg_tok_s": 239.4284425822686,
+    "median_completion_tokens": 200,
+    "n": 3
+  }
+]

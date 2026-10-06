@@ -1,0 +1,1 @@
+tokens=1492 sha=23cdd778a57b finish=stop tok/s=226.2 ttft=0.10s prefill=0.10s rounds=110

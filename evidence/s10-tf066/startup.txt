@@ -1,0 +1,41 @@
+date: 2026-10-06T23:09:38+00:00
+image: sha256:b36c04910ea0366e4324e48c8eb3f8585492deaca12df5f3116f6555e60b8777 labels=map[com.nvidia.build.id:373437299 com.nvidia.build.ref:f0144140a7c872635fafcadbd58fcbd63265d789 com.nvidia.cublas.version:13.6.0.2 com.nvidia.cublasmp.version:0.9.1.3056 com.nvidia.cuda.version:9.0 com.nvidia.cudla.version:13.3.29 com.nvidia.cudnn.version:9.24.0.43 com.nvidia.cufft.version:12.3.0.29 com.nvidia.curand.version:10.4.3.29 com.nvidia.cusolver.version:12.2.6.9 com.nvidia.cusolvermp.version:0.8.0.3126 com.nvidia.cusparse.version:12.8.2.51 com.nvidia.cusparselt.version:0.9.1.1 com.nvidia.nccl.version:2.30.7 com.nvidia.npp.version:13.1.2.81 com.nvidia.nsightcompute.version:2026.2.1.5 com.nvidia.nsightsystems.version:2026.3.1.117 com.nvidia.nvjpeg.version:13.2.1.68 com.nvidia.nvvm.version:13.3.73 com.nvidia.pytorch.version:2.13.0a0+9186a08 com.nvidia.tensorrt.version:11.1.0.106 com.nvidia.tensorrtoss.version: com.nvidia.volumes.needed:nvidia_driver org.opencontainers.image.version:24.04 tensorfold.patch:patches/undeclared-tool-args-0.6.6.patch tensorfold.patch_sha:67c066c083da08786e9f4fac25e15cb8b4512f507ba3be40336999067f437c69 tensorfold.repo:https://github.com/ashhart/TensorFold.git tensorfold.sha:cb2ebf0540f42604e2759b2ddef497861e928248]
+head kernel driver: 580.178.04
+7.0.0-1019-nvidia
+--- head container
+["tensorfold","serve","/cache/huggingface/hub/models--TensorFold--Qwen3.8-Flash-Next-MLX-4bit-MTP/snapshots/2b170fa6309d5d1ee380b35636075fac7945f286","--context","262144","--kv-dtype","int8","--no-update-check","--mtp-drafts","15","--mtp-confidence","0.70","--parallel","8","--tp","2","--rank","0","--master","10.0.0.20","--master-port","29551","--name","TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP","--host","0.0.0.0","--port","8888","--max-tokens","4096","--no-thinking"]
+[tensorfold] warning: non-loopback server has no API key; requests are open
+[tensorfold] loading TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP: Qwen3.8 Flash Next (qwen4_exp) on CUDA, rank 0 of 2
+NCCL version 2.30.7+cuda13.3
+[2026-10-06 23:07:06] gx10:57:57 [0] init.cc:449 NCCL WARN Spectrum-X (SPCX) NCCL plugin is not supported on device:rocep1s0f1, skipping ..
+[tensorfold] CUDA rank 0 startup estimate 45.60 GiB within 99.45 GiB; native 262144, allocated prompt/reply window 262144, cache slots 262160
+[tensorfold] building CUDA extension tensorfold_experts_v7 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_gdn_v2 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qmm_v5 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qwen4_exp_gdn_io (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qwen4_exp_gdn (first start after an install or update; later starts reuse it)
+[tensorfold] HC fusion self-check on cuda:0: passed; enabled
+[tensorfold] HC upmix self-check on cuda:0: passed; enabled
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%; up to 8 streams, each growing to 262144 prompt/reply tokens while memory lasts (56.2 GiB free for their caches, 2.74 GiB for one at the full window), eager; int8 KV cache (fp16 scale per 32 values); n-gram tables read alongside the weights (2.6s after them), locked in memory in 0.5s; 0 decode graphs captured; idle prompt pieces 2048 rows; prompt kernels warmed in 28.8s
+[tensorfold] serving TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP at http://0.0.0.0:8888/v1 on CUDA, rank 0 of 2 (sampling: temperature 1.0, top_k 20, top_p 0.95; drafts: on; prompts: bf16 activations; context: 262144; loaded in 139.4s)
+--- worker container
+[tensorfold] loading 2b170fa6309d5d1ee380b35636075fac7945f286: Qwen3.8 Flash Next (qwen4_exp) on CUDA, rank 1 of 2
+[2026-10-06 23:07:06] xspark:7:7 [0] init.cc:449 NCCL WARN Spectrum-X (SPCX) NCCL plugin is not supported on device:rocep1s0f1, skipping ..
+[tensorfold] CUDA rank 1 startup estimate 45.60 GiB within 103.10 GiB; native 262144, allocated prompt/reply window 262144, cache slots 262160
+[tensorfold] building CUDA extension tensorfold_experts_v7 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_gdn_v2 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qmm_v5 (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qwen4_exp_gdn_io (first start after an install or update; later starts reuse it)
+[tensorfold] building CUDA extension tensorfold_qwen4_exp_gdn (first start after an install or update; later starts reuse it)
+[tensorfold] HC fusion self-check on cuda:0: passed; enabled
+[tensorfold] HC upmix self-check on cuda:0: passed; enabled
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%; up to 8 streams, each growing to 262144 prompt/reply tokens while memory lasts (59.8 GiB free for their caches, 2.74 GiB for one at the full window), eager; int8 KV cache (fp16 scale per 32 values); n-gram tables read alongside the weights (3.7s after them), locked in memory in 7.6s; 0 decode graphs captured; idle prompt pieces 2048 rows; prompt kernels warmed in 21.7s
+[tensorfold] rank 1 ready in 146.9s, following rank 0
+--- free -h head
+               total        used        free      shared  buff/cache   available
+Mem:           121Gi        83Gi        36Gi       1.4Gi        34Gi        38Gi
+Swap:           15Gi       340Ki        15Gi
+--- free -h worker
+               total        used        free      shared  buff/cache   available
+Mem:           121Gi        79Gi        40Gi       1.3Gi        33Gi        42Gi
+Swap:           39Gi          0B        39Gi

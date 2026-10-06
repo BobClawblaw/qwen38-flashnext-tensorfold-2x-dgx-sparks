@@ -1,0 +1,3 @@
+STREAM {"stream": 0, "prompt_tokens": 1047, "completion_tokens": 541, "ttft_s": 0.87, "decode_tok_s": 54.0, "chunks": 283}
+STREAM {"stream": 1, "prompt_tokens": 1015, "completion_tokens": 580, "ttft_s": 0.87, "decode_tok_s": 53.8, "chunks": 307}
+SUMMARY {"task": "story", "streams": 2, "prompt_tokens_target": 1000, "tokens": 1024, "ok": 2, "wall_s": 11.6, "prompt_tokens_total": 2062, "aggregate_tok_s_first_to_last": 104.3, "steady_tok_s_all_decoding": 107.3, "overlap_s": 10.0}

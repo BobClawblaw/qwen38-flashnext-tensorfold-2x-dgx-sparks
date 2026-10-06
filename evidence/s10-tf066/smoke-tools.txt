@@ -1,0 +1,15 @@
+{
+  "tool_calls": [
+    {
+      "id": "call_2a99f22b9b2041cab8e751d5",
+      "type": "function",
+      "function": {
+        "name": "get_weather",
+        "arguments": "{\"city\":\"Wellington\"}"
+      }
+    }
+  ],
+  "finish_reason": "tool_calls",
+  "content": null
+}
+smoke_tools rc=0

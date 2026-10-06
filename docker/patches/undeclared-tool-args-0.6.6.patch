@@ -1,0 +1,202 @@
+diff --git a/src/tensorfold/cuda/reply_text.py b/src/tensorfold/cuda/reply_text.py
+index 6fa1026..4568661 100644
+--- a/src/tensorfold/cuda/reply_text.py
++++ b/src/tensorfold/cuda/reply_text.py
+@@ -9,7 +9,7 @@ from typing import Any
+ 
+ from tensorfold.server.stopping import StopPolicy
+ from tensorfold.server.tools import parse_glm_tool_call_block
+-from tensorfold.tool_parameters import decode_parameter, parameter_schemas
++from tensorfold.tool_parameters import decode_parameter, keeps_parameter, parameter_schemas
+ 
+ _CALL_OPEN, _CALL_CLOSE = "<tool_call>", "</tool_call>"
+ _TOOL_CALL_BLOCK_RE = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.IGNORECASE | re.DOTALL)
+@@ -132,7 +132,8 @@ def parse_tool_calls(text: str, tools: list[dict[str, Any]], *, max_calls: int |
+                 props = schemas.get(name.lower(), {})
+                 args = {key: decode_parameter(value, props.get(key, {}))
+                         for key, value in ((p.group(1).strip(), p.group(2))
+-                                           for p in _TOOL_PARAMETER_BLOCK_RE.finditer(m.group(2)))}
++                                           for p in _TOOL_PARAMETER_BLOCK_RE.finditer(m.group(2)))
++                        if keeps_parameter(key, props)}
+             else:
+                 glm = parse_glm_tool_call_block(block, tools, complete=max_calls is not None)
+                 if glm is not None:
+diff --git a/src/tensorfold/engine/tool_draft.py b/src/tensorfold/engine/tool_draft.py
+index bd64ae6..2240b6e 100644
+--- a/src/tensorfold/engine/tool_draft.py
++++ b/src/tensorfold/engine/tool_draft.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ import re
+ from typing import Any, Sequence
+ 
+-from tensorfold.tool_parameters import decode_parameter, parameter_schemas, typed_parameter
++from tensorfold.tool_parameters import decode_parameter, keeps_parameter, parameter_schemas, typed_parameter
+ 
+ _OPEN = "<tool_call>"
+ _END = "\x00end"  # placeholder: after a closed call the draft is the end-of-turn token
+@@ -261,6 +261,7 @@ class ToolCallStreamer:
+         self.lead = False       # the framing newline after <parameter=NAME> has not arrived yet
+         self.held = ""
+         self.streamed = False
++        self.skip = False       # the current parameter is one the tool does not declare: no delta for it
+ 
+     def _args(self, fragment: str) -> dict[str, Any]:
+         return {"tool_calls": [{"index": self.index, "function": {"arguments": fragment}}]}
+@@ -305,12 +306,15 @@ class ToolCallStreamer:
+             elif self.state == "function":
+                 m = re.match(r"\s*<parameter=([^>\n]+)>\n?", rest)
+                 if m is not None:
+-                    self.value_schema = self.current_schema.get(m.group(1).strip(), {})
++                    key = m.group(1).strip()
++                    self.skip = not keeps_parameter(key, self.current_schema)
++                    self.value_schema = self.current_schema.get(key, {})
+                     self.typed = typed_parameter(self.value_schema)
+                     self.value_buffer = ""
+-                    out.append(self._args(("," if self.args_open else "{")
+-                                          + self._esc_key(m.group(1).strip()) + (':' if self.typed else ':"')))
+-                    self.args_open = True
++                    if not self.skip:
++                        out.append(self._args(("," if self.args_open else "{")
++                                              + self._esc_key(key) + (':' if self.typed else ':"')))
++                        self.args_open = True
+                     self.pos += m.end()
+                     self.state = "value"
+                     self.lead = not m.group(0).endswith("\n")
+@@ -337,13 +341,17 @@ class ToolCallStreamer:
+                 else:
+                     keep = piece.rstrip()   # its last newline may be the framing one
+                     self.held = piece[len(keep):]
+-                if self.typed:
++                if self.skip:
++                    pass
++                elif self.typed:
+                     self.value_buffer += keep
+                 elif keep:
+                     out.append(self._args(self._esc(keep)))
+                 if end < 0:
+                     break
+-                if self.typed:
++                if self.skip:
++                    self.skip = False
++                elif self.typed:
+                     import json
+                     out.append(self._args(json.dumps(decode_parameter(self.value_buffer, self.value_schema), ensure_ascii=False)))
+                 else:
+diff --git a/src/tensorfold/server/tools.py b/src/tensorfold/server/tools.py
+index d7042f8..1270fa1 100644
+--- a/src/tensorfold/server/tools.py
++++ b/src/tensorfold/server/tools.py
+@@ -7,7 +7,7 @@ import re
+ import uuid
+ from typing import Any
+ 
+-from tensorfold.tool_parameters import decode_parameter, parameter_schemas
++from tensorfold.tool_parameters import decode_parameter, keeps_parameter, parameter_schemas
+ 
+ def tool_spec_name(tool: dict[str, Any]) -> str:
+     function = tool.get("function") if isinstance(tool, dict) else None
+@@ -242,10 +242,12 @@ def _parse_tool_call_payload(block: str, schemas: dict[str, dict[str, Any]] | No
+     body = match.group(2)
+     if complete and _TOOL_PARAMETER_BLOCK_RE.sub("", body).strip():
+         return None
++    properties = (schemas or {}).get(name.lower(), {})
+     for param_match in _TOOL_PARAMETER_BLOCK_RE.finditer(body):
+         key = param_match.group(1).strip()
+-        schema = (schemas or {}).get(name.lower(), {}).get(key, {})
+-        arguments[key] = decode_parameter(param_match.group(2), schema)
++        if not keeps_parameter(key, properties):
++            continue
++        arguments[key] = decode_parameter(param_match.group(2), properties.get(key, {}))
+     if not name:
+         raise ValueError("tool_call is missing a function name")
+     return name, arguments
+diff --git a/src/tensorfold/tool_parameters.py b/src/tensorfold/tool_parameters.py
+index d722004..791d027 100644
+--- a/src/tensorfold/tool_parameters.py
++++ b/src/tensorfold/tool_parameters.py
+@@ -8,6 +8,14 @@ from collections.abc import Sequence
+ from typing import Any
+ 
+ 
++def keeps_parameter(key: str, properties: dict[str, Any] | None) -> bool:
++    """Whether a tool call's argument is kept: a tool that declares properties takes only those; one that
++    declares none takes every argument. Qwen3.8-Flash-Next (MLX 4-bit) sometimes adds an optional argument the
++    schema does not have (``formal`` on a translate tool); dropping it leaves the call the client asked for."""
++
++    return not properties or key in properties
++
++
+ def parameter_schemas(tools: Sequence[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
+     """Each offered tool's parameter schemas by lowercase name; a spec that is not an object reads as untyped."""
+ 
+diff --git a/tests/test_tool_undeclared_arguments.py b/tests/test_tool_undeclared_arguments.py
+new file mode 100644
+index 0000000..b57691d
+--- /dev/null
++++ b/tests/test_tool_undeclared_arguments.py
+@@ -0,0 +1,65 @@
++"""A Qwen XML tool call keeps only the parameters the offered tool declares, on every parser and in the stream.
++
++Qwen3.8-Flash-Next (MLX 4-bit) sometimes adds an optional argument the schema does not have (``formal`` on a
++translate tool). A tool that declares no properties still takes every argument."""
++
++import json
++
++from tensorfold.cuda.reply_text import parse_tool_calls as cuda_parse
++from tensorfold.engine.tool_draft import ToolCallStreamer
++from tensorfold.server.tools import parse_tool_calls_from_content
++from tensorfold.tool_parameters import keeps_parameter
++
++TRANSLATE = {"type": "function", "function": {"name": "translate_text", "parameters": {
++    "type": "object", "properties": {"text": {"type": "string"}, "target": {"type": "string"},
++                                     "count": {"type": "integer"}},
++    "required": ["text", "target"]}}}
++FREEFORM = {"type": "function", "function": {"name": "echo", "parameters": {"type": "object"}}}
++CALL = ("<tool_call>\n<function=translate_text>\n<parameter=text>\nGuten Tag\n</parameter>\n"
++        "<parameter=formal>\nFalse\n</parameter>\n<parameter=target>\nen\n</parameter>\n"
++        "<parameter=count>\n2\n</parameter>\n</function>\n</tool_call>")
++WANT = {"text": "Guten Tag", "target": "en", "count": 2}
++
++
++def test_rule():
++    assert keeps_parameter("formal", {}) and keeps_parameter("formal", None)
++    assert keeps_parameter("text", {"text": {}}) and not keeps_parameter("formal", {"text": {}})
++
++
++def test_server_parser_drops_an_undeclared_argument():
++    residue, calls = parse_tool_calls_from_content(CALL, [TRANSLATE])
++    assert residue.strip() == "" and len(calls) == 1
++    assert json.loads(calls[0]["function"]["arguments"]) == WANT
++
++
++def test_cuda_parser_drops_an_undeclared_argument():
++    residue, calls = cuda_parse(CALL, [TRANSLATE])
++    assert residue.strip() == "" and len(calls) == 1
++    assert json.loads(calls[0]["function"]["arguments"]) == WANT
++
++
++def test_a_tool_without_properties_keeps_every_argument():
++    text = CALL.replace("translate_text", "echo")
++    _, calls = cuda_parse(text, [FREEFORM])
++    assert json.loads(calls[0]["function"]["arguments"]) == {"text": "Guten Tag", "formal": "False",
++                                                             "target": "en", "count": "2"}
++    _, calls = parse_tool_calls_from_content(text, [FREEFORM])
++    assert set(json.loads(calls[0]["function"]["arguments"])) == {"text", "formal", "target", "count"}
++
++
++def _streamed(text, tools, step):
++    streamer, deltas = ToolCallStreamer(tools), []
++    for at in range(0, len(text), step):
++        deltas += streamer.feed(text[:at + step])
++    return "".join(d["tool_calls"][0]["function"].get("arguments", "") for d in deltas)
++
++
++def test_stream_emits_no_delta_for_an_undeclared_argument():
++    for step in (1, 3, 7, len(CALL)):
++        assert json.loads(_streamed(CALL, [TRANSLATE], step)) == WANT, step
++    first = CALL.replace("<parameter=text>\nGuten Tag\n</parameter>\n", "")
++    first = first.replace("</function>", "<parameter=text>\nGuten Tag\n</parameter>\n</function>")
++    for step in (1, 5):   # the undeclared one comes first: the brace still opens on the first kept key
++        assert json.loads(_streamed(first, [TRANSLATE], step)) == WANT, step
++    only = "<tool_call>\n<function=translate_text>\n<parameter=formal>\nFalse\n</parameter>\n</function>\n</tool_call>"
++    assert json.loads(_streamed(only, [TRANSLATE], 4)) == {}

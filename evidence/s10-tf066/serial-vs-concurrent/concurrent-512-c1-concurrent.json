@@ -1,0 +1,79 @@
+{
+ "label": "",
+ "tokens": 512,
+ "mixed": false,
+ "cells": [
+  {
+   "prompt": "code",
+   "temperature": 0.0,
+   "streams": 1,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 87.5,
+   "per_stream_tps": 87.5,
+   "ttft_s_max": 0.06,
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 67.54145282219416,
+     "per_stream_tps": [
+      67.5
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": []
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 107.43716109936092,
+     "per_stream_tps": [
+      107.4
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": []
+    }
+   ]
+  },
+  {
+   "prompt": "chat",
+   "temperature": 0.0,
+   "streams": 1,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 77.3,
+   "per_stream_tps": 77.3,
+   "ttft_s_max": 0.06,
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 67.88872952575737,
+     "per_stream_tps": [
+      67.9
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": []
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 86.73135503904962,
+     "per_stream_tps": [
+      86.7
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": []
+    }
+   ]
+  }
+ ]
+}

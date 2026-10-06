@@ -6,24 +6,34 @@ set -euo pipefail
 
 # PROFILE=concurrent: the opt-in two-rank --parallel image (README "Concurrency"). It only fills the
 # variables below when they are unset, so an explicit IMAGE / TF_PATCH / PARALLEL still wins.
+# Cluster settings live in .env.cluster next to this script (KEY=VALUE lines; a variable already in the
+# environment wins, so systemd's EnvironmentFile and a one-off `PORT=8001 ./run.sh` both override it).
+# ENV_CLUSTER names another file; ENV_CLUSTER=/dev/null reads none (tests/ and CI use that).
+_env_cluster="${ENV_CLUSTER:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.env.cluster}"
+if [[ -f "$_env_cluster" ]]; then
+  while IFS= read -r _line || [[ -n "$_line" ]]; do
+    [[ "$_line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)=(.*)$ ]] || continue
+    [[ -z "${!BASH_REMATCH[1]+x}" ]] && declare "${BASH_REMATCH[1]}=${BASH_REMATCH[2]}"
+  done <"$_env_cluster"
+fi
+unset _env_cluster _line
+
 PROFILE="${PROFILE:-serial}"
 case "$PROFILE" in
   serial) ;;
   concurrent)
-    IMAGE="${IMAGE:-tf-qwen38-flashnext:0.6.2-pr141}"
-    TF_PATCH="${TF_PATCH:-patches/pr141-on-0.6.2.patch}"
+    # Eight streams on two ranks. TensorFold 0.6.4+ serves --parallel at --tp 2 natively; the image is the same.
     PARALLEL="${PARALLEL:-8}"
     ;;
   *) echo "PROFILE=$PROFILE must be serial or concurrent." >&2; exit 1 ;;
 esac
 
 # BEGIN generated from recipe.yaml — edit recipe.yaml and run kit/render.py
-[[ -f "/opt/qwen38-flashnext-tensorfold/.env.cluster" ]] && source "/opt/qwen38-flashnext-tensorfold/.env.cluster"
 MODEL="${MODEL:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
 SERVED_NAME="${SERVED_NAME:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
-IMAGE="${IMAGE:-tf-qwen38-flashnext:0.6.2}"
-TF_SHA="${TF_SHA:-56e2e3ec55bc0ae1d7d5158c4fa2c79a3567ab21}"
-TF_PATCH="${TF_PATCH:-none}"
+IMAGE="${IMAGE:-tf-qwen38-flashnext:0.6.6}"
+TF_SHA="${TF_SHA:-cb2ebf0540f42604e2759b2ddef497861e928248}"
+TF_PATCH="${TF_PATCH:-patches/undeclared-tool-args-0.6.6.patch}"
 CONTAINER_NAME="${CONTAINER_NAME:-tf-qwen38-flashnext}"
 PORT="${PORT:-8000}"
 MASTER_PORT="${MASTER_PORT:-29551}"
@@ -63,12 +73,10 @@ HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
 NATIVE_CONTEXT=262144
 # The engine's draft cap (families/qwen4_exp/cuda/engine.py MAX_DEPTH).
 MAX_MTP_DRAFTS=15
-# The only patch that serves --parallel on two ranks (docker/patches/; README "Concurrency").
-PARALLEL_PATCH=patches/pr141-on-0.6.2.patch
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/pr141-on-0.6.2.patch]=03027e4f22233d5c4790ea56c7e5a0c5ec85d11e891a3ca238b2edf03ff51571
+  [patches/undeclared-tool-args-0.6.6.patch]=67c066c083da08786e9f4fac25e15cb8b4512f507ba3be40336999067f437c69
 )
 
 die() {
@@ -118,10 +126,8 @@ case "$KV_DTYPE" in
 esac
 (( CONTEXT <= NATIVE_CONTEXT )) || die "CONTEXT=$CONTEXT exceeds the native window $NATIVE_CONTEXT; TensorFold refuses it and serves no YaRN."
 (( MTP_DRAFTS <= MAX_MTP_DRAFTS )) || die "MTP_DRAFTS=$MTP_DRAFTS exceeds the engine cap $MAX_MTP_DRAFTS."
-# 0.6.2 refuses --parallel with --tp 2 (engine.py:64-66). The PR-141 port serves it.
-if (( PARALLEL > 1 && TP == 2 )) && [[ "$TF_PATCH" != "$PARALLEL_PATCH" ]]; then
-  die "PARALLEL=$PARALLEL with TP=2 needs TF_PATCH=$PARALLEL_PATCH (TensorFold 0.6.2 serves one request at a time on two ranks; README 'Concurrency')."
-fi
+# --parallel N at --tp 2: TensorFold 0.6.4+ serves it (release notes, #141). Grammars (response_format,
+# guided_*) are still refused at two ranks with --parallel (families/qwen4_exp/cuda/engine.py).
 
 # --- EXTRA_ENV: KEY=VALUE words, no spaces inside a value.
 EXTRA_ENV_ARGS=()
@@ -513,7 +519,4 @@ else
   start_local 0
   wait_ready 0
   log "Stop with: ./stop.sh"
-  # hold main pid alive for systemd Type=simple; containers serve meanwhile
-  while curl -sf -m 5 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; do sleep 30; done
-  log "health gone; exiting run.sh keeper loop"
 fi

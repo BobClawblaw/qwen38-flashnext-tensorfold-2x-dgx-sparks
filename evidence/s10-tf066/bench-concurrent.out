@@ -1,0 +1,4 @@
+{"label": "", "prompt": "code", "temperature": 0.0, "streams": 1, "failed": 0, "unmeasured": 0, "aggregate_tps": 103.7, "per_stream_tps": 103.7, "ttft_s_max": 0.06, "alone": {"equal": 1, "unequal": 0, "failed": 0}}
+{"label": "", "prompt": "code", "temperature": 0.0, "streams": 8, "failed": 0, "unmeasured": 0, "aggregate_tps": 319.2, "per_stream_tps": 40.0, "ttft_s_max": 0.17, "steady_tps": 312.4, "alone": {"equal": 8, "unequal": 0, "failed": 0}}
+{"label": "", "prompt": "chat", "temperature": 0.0, "streams": 1, "failed": 0, "unmeasured": 0, "aggregate_tps": 87.9, "per_stream_tps": 87.9, "ttft_s_max": 0.06, "alone": {"equal": 1, "unequal": 0, "failed": 0}}
+{"label": "", "prompt": "chat", "temperature": 0.0, "streams": 8, "failed": 0, "unmeasured": 0, "aggregate_tps": 439.1, "per_stream_tps": 55.1, "ttft_s_max": 0.17, "steady_tps": 442.8, "alone": {"equal": 8, "unequal": 0, "failed": 0}}

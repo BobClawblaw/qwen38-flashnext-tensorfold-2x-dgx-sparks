@@ -1,0 +1,2 @@
+{"label": "", "prompt": "code", "temperature": 0.0, "streams": 1, "failed": 0, "unmeasured": 0, "aggregate_tps": 108.5, "per_stream_tps": 108.5, "ttft_s_max": 0.06}
+{"label": "", "prompt": "chat", "temperature": 0.0, "streams": 1, "failed": 0, "unmeasured": 0, "aggregate_tps": 89.9, "per_stream_tps": 89.9, "ttft_s_max": 0.06}

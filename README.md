@@ -1,243 +1,252 @@
-# Qwen3.8-Flash-Next · TensorFold · 2× DGX Spark (GB10)
+# Qwen3.8-Flash-Next · TensorFold 0.6.6 · 2× DGX Spark
 
-Serve **Qwen3.8-Flash-Next** across two NVIDIA DGX Sparks (GB10, 128 GB each) with the
-[TensorFold](https://github.com/ashhart/TensorFold) inference engine, tensor-parallel 2 over a direct
-ConnectX-7 link, 8 concurrent requests, MTP speculative decoding 15 drafts @ 0.70, int8 KV cache,
-262,144-token context, OpenAI-compatible API on port 8888.
+Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) across two NVIDIA DGX Spark (GB10, 128 GB) nodes at tensor-parallel 2 with the [TensorFold](https://github.com/ashhart/TensorFold) engine: eight concurrent streams, the full 262,144-token window on both ranks, MTP speculative decoding (15 drafts at confidence 0.70), int8 KV cache, an OpenAI-compatible API, and a systemd unit that brings the pair up at boot.
 
-Base recipe: [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark)
-(TensorFold 0.6.2 `56e2e3e`, pr141 two-rank `--parallel` patch, docker image `tf-qwen38-flashnext:0.6.2-pr141`).
-Engine credit: TensorFold contributors (Apache-2.0). Checkpoint:
-[TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP)
-at revision `2b170fa6309d5d1ee380b35636075fac7945f286` (113 GB, MLX affine 4-bit group 32, every linear
-including n-gram tables and MTP head).
+This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
-## Files this repo ships
+- **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PARALLEL=8` (or `PROFILE=concurrent`) for eight streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
+- **One patch, baked into the image:** [`docker/patches/undeclared-tool-args-0.6.6.patch`](docker/patches/undeclared-tool-args-0.6.6.patch). A Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer, so streamed and non-streamed arguments agree. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
+- **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
+- **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
+- **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, eight streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
 
-```
-run.sh            modified sfxnz run.sh: +buildx container skip, +keeper loop (systemd), +.env.cluster source
-.env.cluster      cluster config: HEAD_IP, WORKER_HOST, PORT 8888, KV_DTYPE int8, MTP_DRAFTS 15, HCA 1 port
-start-systemd.sh  wrapper: env + cd + exec run.sh (for systemd Type=oneshot)
-qwen38-tensorfold.service  systemd unit (install to /etc/systemd/system/)
-stop.sh           from sfxnz repo, unchanged
-```
+Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, sparse attention, hyper-connections, hashed n-gram (PLE) tables and one MTP layer. The checkpoint is MLX affine 4-bit (group 32) on every linear, including the n-gram tables and the MTP head. It is the only Flash Next format TensorFold serves on two ranks: NVFP4 and EXL3 exports run on one GPU only. Pinned snapshot: `2b170fa6309d5d1ee380b35636075fac7945f286`.
 
-Everything else (docker/, kit/, patches/, evidence/, tests/) comes from the sfxnz repo unmodified.
-Clone both:
+TensorFold runs inside `nvcr.io/nvidia/pytorch:26.07-py3` (digest-pinned), built locally from [`docker/Dockerfile`](docker/Dockerfile). Its kernels JIT-compile for sm_121 on the first start of each engine commit and are cached on the host after that. Rank 1 runs on the worker, rank 0 serves HTTP on the head; partials are all-gathered over NCCL on the QSFP RoCE link.
 
-```bash
-git clone https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark.git qwen38-flashnext-tensorfold
-cd qwen38-flashnext-tensorfold
-cp /path/to/this/repo/run.sh run.sh                 # modified: buildx skip + keeper loop + .env.cluster source
-cp /path/to/this/repo/.env.cluster .env.cluster     # YOUR IPs: head + worker + PORT + KV_DTYPE + MTP_DRAFTS
-cp /path/to/this/repo/start-systemd.sh .
-cp /path/to/this/repo/qwen38-tensorfold.service /etc/systemd/system/
-```
+## Measured on this pair (TensorFold 0.6.6, eight streams, int8 KV)
 
-## .env.cluster (edit for your cluster)
+`python3 bench_decode.py`, byte-identical to the vLLM sibling's frozen ruler (sha256 `6a9c64bd…`). Receipts: [`evidence/s10-tf066/`](evidence/s10-tf066/). The base recipe's tables (0.6.2, bf16 KV, one stream at a time) are in its README and under `evidence/s1-…s9-…`; its numbers are not repeated here.
 
-```bash
-HEAD_IP=10.0.0.20          # this node's address on the ConnectX-7 link
-WORKER_HOST=username@10.0.0.30   # worker node ssh target (key-based ssh required)
-PORT=8888                  # API port (default recipe: 8000)
-KV_DTYPE=int8              # int8 = 2.1M tokens KV pool @ 8 streams; bf16 = 262k x 8 + 97.8GiB
-MTP_DRAFTS=15              # speculative drafts (default 6; 15 measured +42% structured)
-```
+<!-- BEGIN generated measured from recipe.yaml — edit recipe.yaml and run kit/render.py -->
+Conditions: streamed greedy, thinking off, max_tokens 200 (prose ends at EOS near 100), 3-run median; TensorFold 0.6.6 at TP=2 with PARALLEL=8, context 262144, kv int8, MTP up to 15 drafts at confidence 0.70, one RoCE HCA; the second bench_decode run on the boot (the first, right after a warm-up request, is bench-frozen-1.out).
 
-Do NOT set HCA here. Default `rocep1s0f1,roceP2p1s0f1` (both ports) BROKE rank1 boot 50s in
-(ibv_query_port_speed errno93, head f0 DOWN worker f0 UP). Single `rocep1s0f1` = green 12 boots.
+| Phase | Concurrency | Decode tok/s (median per stream) | Aggregate tok/s | TTFT p50 |
+|---|---|---:|---:|---:|
+| prose | 1 | 65.6 | 65.6 | 0.06 s |
+| prose (note 1) | 2 | 60.3 | 120.6 | 0.06 s |
+| structured | 1 | 232.9 | 232.8 | 0.07 s |
+| structured (note 2) | 2 | 210.7 | 417.5 | 0.09 s |
 
-## run.sh modifications (3 lines)
+1. With PARALLEL=8 both streams decode together in shared lane rounds, so the aggregate is real concurrent throughput and the second stream's TTFT is its own prefill, not a queue wait.
+2. Same as note 1.
+<!-- END generated measured -->
 
-1. **Line 270 buildx skip** — buildkit container holds GPU refs, `refuse_foreign_serve` kills boot:
-   ```bash
-   [[ -z "$name" || "$name" == "$CONTAINER_NAME" || "$name" == buildx_buildkit_dgx-bundle-builder0 ]] && continue
-   ```
-2. **Line 19 source .env.cluster** — cluster IPs out of git-repo run.sh, into .env.cluster:
-   ```bash
-   [[ -f "/path/to/repo/.env.cluster" ]] && source "/path/to/repo/.env.cluster"
-   ```
-3. **Line 516 keeper loop** — run.sh exited after `Ready` (containers docker-detached), systemd
-   Type=simple saw main exit → Restart loop → kill -9 -15 cascade 5x. Keep main pid alive:
-   ```bash
-   while curl -sf -m 5 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; do sleep 30; done
-   ```
+### Longer and concurrent cells, same boot
 
-## systemd
-
-```
-/etc/systemd/system/qwen38-tensorfold.service
-[Unit]
-Description=Qwen3.8-Flash-Next TensorFold TP2 (2x DGX Spark) on 8888
-After=network-online.target docker.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-User=YOUR_USER
-WorkingDirectory=/opt/qwen38-flashnext-tensorfold
-Environment=HOME=/opt/qwen38-flashnext-tensorfold
-Environment=PATH=/opt/qwen38-flashnext-tensorfold/.local/bin:/usr/local/bin:/usr/bin:/bin
-Environment=PROFILE=concurrent
-EnvironmentFile=/path/to/repo/.env.cluster
-ExecStart=/path/to/repo/start-systemd.sh
-ExecStop=/path/to/repo/stop.sh
-Restart=on-failure
-RestartSec=30
-TimeoutStartSec=900
-
-[Install]
-WantedBy=multi-user.target
-```
-
-**Type=oneshot + RemainAfterExit=yes** — NOT Type=simple. run.sh spawns rank1 ssh bg, boots rank0
-docker-detached, prints Ready, keeper loops 30s, main EXITS. Type=simple + Restart=on-failure =
-30s kill loop (5 boots 50s apart, worker ibv corrupt). oneshot+RemainAfterExit: systemd stops
-tracking, docker holds containers, stop.sh on reboot.
-
-**Boot order warning:** `systemctl start` AFTER docker containers up = run.sh sees live serve,
-wait_ready 200, keeper loop, exit 0, RemainAfterExit active. Clean.
-
-**Do NOT run `./run.sh` background AND systemctl start same time** — bg proc exit trap → stop.sh →
-kills systemd containers → Restart loop → worker ibv corrupt (580.178 driver, 12 boots deep).
-Kill bg procs `ps aux | grep run.sh` before systemd start.
-
-## Crash story (2× DGX Spark, 6h, 15 boots, 124ms/rd mystery solved)
-
-| # | config | result |
+| Cell | Result | Receipt |
 |---|---|---|
-| 1-3 | sfxnz defaults (HEAD 10.100.8.x, WORKER spark2) | ssh fail / buildx GPU block / .env missing |
-| 4 | IPs fixed, download 113G | 40G/113G dl ok, 24 min |
-| 5-6 | worker .locks permission denied | worker cache root-owned; chown |
-| 7 | 22/22 shards, image built | **GREEN 2h in**: c1 1200tok 131 tok/s, 85 rounds, 14.1 tok/round |
-| 8 | benchmark 124ms/round deep-dive | int8? no. MTP? no. NCCL 124ms/round |
-| 9 | +NET_PLUGIN=none +GID_INDEX=3 | worker GID flapped mid-boot, rank0 13min stuck, BOTH ranks dead |
-| 10-11 | revert gid3+plugin, ssh race, .env.cluster eaten by git restore | ssh fail x2 |
-| 12 | run.sh = run7 exact + buildx skip + .env.cluster | **GREEN**: 1200tok x2, 127 tok/s, 124ms/round CONFIRMED |
-| 13 | +systemd Type=simple Restart=on-failure | 30s kill loop 5x, worker ibv errno93 corrupt |
-| 14 | +mlx5 modprobe reset worker, GPU persistenced socket missing | rank0 docker create fail: /run/nvidia-persistenced/socket |
-| 15 | systemctl start nvidia-persistenced, retry | **GREEN**: 1200tok x2 131 tok/s 108ms/round |
-| final | +systemd Type=oneshot RemainAfterExit=yes, keeper loop | **STABLE**: 1200tok x2 130 tok/s, c1 400tok 135 |
+| Count 1 to 400 (1,492 reply tokens), greedy, one stream | 220.8 tok/s, 110 verify rounds (13.6 tokens per round), 1,381 of 1,537 drafts accepted, TTFT 0.07 s | [`count-400-done-line.txt`](evidence/s10-tf066/count-400-done-line.txt) |
+| `tools/vendor/bench_concurrent.py`, code prompt, greedy, 256 tokens, 1 user | 103.7 tok/s | [`bench-concurrent.out`](evidence/s10-tf066/bench-concurrent.out) |
+| same, 8 users | 319.2 tok/s aggregate (40.0 per stream), slowest first token 0.17 s | same |
+| chat prompt, greedy, 1 user | 87.9 tok/s | same |
+| chat prompt, greedy, 8 users | 439.1 tok/s aggregate (55.1 per stream), slowest first token 0.17 s | same |
 
-## Performance (2× DGX Spark GB10, TensorFold 0.6.2-pr141, int8 KV, MTP15@0.70, 262k ctx, 8 streams)
+Every concurrent reply had the same token sha as the same request sent alone (`--alone`: 8 of 8 equal in both 8-user cells). One round costs about 61 ms on this pair whatever the prompt; tokens per round is what moves between prose (about 2) and counting (13.6). Against the base recipe's 0.6.2 numbers on the same ruler: prose c=1 65.6 against 69.6 (serial profile with CUDA graphs) and 67.0 (its PR141 port, measured here before the upgrade); structured c=1 232.9 against 249.5 and 223. The startup line's "0 decode graphs captured" counts only the serial engine's warm-up; with `PARALLEL=8` a lone stream gets its own graph slot and captures lazily on first use (`multi_solo.py`), and shared rounds with several streams run eager. The single-stream gap to the serial profile is 5-10% on repeated prompts and 27-43% on distinct ones (the per-prompt warm-up of the concurrent decoder; see the next section); `PARALLEL=1` removes it for a single user.
 
-### TensorFold vs vLLM 0.30 NVFP4 (same 2× Sparks, same day, sfxnz harness)
+### One user: serial against concurrent profile
 
-| Workload | TensorFold (ours) | vLLM NVFP4 | ratio |
-|---|---:|---:|---:|
-| 400-token count, c1, sustained x4 | 131-136 tok/s | 46.5 | **2.8x** |
-| 1200-token count, c1, x2 back-to-back | 128-133 tok/s | 46.5 | 2.7x |
-| structured c1 (200tok, 3-run median, cold) | 68-74 | 46.5 | 1.5x |
-| structured c2 agg | 222 | 93 | 2.4x |
-| structured c4 agg | 322 | 186 | 1.7x |
-| structured c8 agg | 424 | 372 | 1.14x |
-| prose c1 | 28 | 46.5 | 0.6x (90tok short-run warmup) |
-| prose c2 agg | 54 | 93 | 0.6x |
-| prose c4 agg | 87 | 186 | 0.47x |
-| prose c8 agg | 139 | 372 | 0.37x |
-| TTFT c1 (400tok count) | 0.18-0.27s | 0.6s | 2.4x faster |
-| MTP drafts accept | 375/487 = 77% | n/a | - |
-| tokens/round | 14.1 (warm) | n/a | - |
+Same image, same boot. `PARALLEL=1` (the serial engine, 48 CUDA graphs) against `PARALLEL=8` (the concurrent decoder). Receipts: [`evidence/s10-tf066/serial-vs-concurrent/`](evidence/s10-tf066/serial-vs-concurrent/).
 
-**Prose c1-c4 slower, structured c1-c8 faster.** Prose = low MTP acceptance (draft guesses free text,
-chains die 2 deep 49 rounds/90tok). Structured = high acceptance (counting deterministic, 14 tok/round).
-Agent workload = structured JSON + code + tool calls = **TF wins where it matters**.
-
-### vs myllmbox v5.2 (vLLM 0.30 + RecoverSSM + INT4-AutoRound expert-parallel + RoCE one-shot allreduce)
-
-| | myllmbox v5.2 | ours TF 0.6.2 int8 |
+| Cell, one user | `PARALLEL=8` | `PARALLEL=1` |
 |---|---:|---:|
-| c1 mixed | 100 | 116-137 |
-| c1 structured | 124 | 128-136 |
-| c1 peak | 177 | 137 |
-| c4 agg mixed | 244 | ~320 |
-| c4 struct | 312 | 322 |
-| c8 mixed | 335 | 139 (prose) |
-| c8 struct | 442 | 424 |
-| prefill 128k | 3939 | 2377 |
-| TTFT 1k | 0.36s | 0.19-0.25s |
-| c64 agg | 1174 peak | n/a (8 max) |
-| KV pool | 1.8M | 2.1M (262k x 8) |
-| ctx | 262k | 262k |
-| tool calls | **60/60** | 60/60 |
+| 12 different prompts, 256 tokens (`tools/bench_distinct.py`) | 55 to 62 | **79** |
+| frozen prose | 56 first pass, 66 repeated | **72** |
+| frozen structured | 199 first pass, 240 repeated | **242** |
+| code, 512 tokens | 87 | **111** |
+| chat, 512 tokens | 78 | **97** |
+| count 1 to 400 | 166 | **226** |
 
-**c1-c4 agent workload: ours wins +8-30%.** Their 64-stream swarm + 128k prefill = different beast.
-Their secret: vLLM 0.30 + RecoverSSM + expert-parallel + **RoCE one-shot allreduce** (b12x, 11us vs
-NCCL 45ms) + skinny-GEMM. TF 0.6.2 has no RoCE patch — 124ms/round is 580.178 driver floor.
-610 compat next boot → c1 137 → 500+ projected.
+The concurrent decoder pays a per-prompt warm-up, so repeated prompts look close to the serial engine and real traffic (a new prompt every time) does not: 27-43% slower. If the pair serves one client at a time, set `PARALLEL=1` in `.env.cluster` (it also serves `response_format`). Keep `PROFILE=concurrent` when several clients share it: at four users it still aggregates 260-330 tok/s.
 
-### Benchmark (raw, bench_decode.py 3-run median, sfxnz harness)
+### Replies of 512 and 1024 tokens, 1 to 4 users
 
-```
-phase=structured c=1   median_decode=110.8  ttft=0.23s  agg=110.7   (n=3)
-phase=structured c=4   per_stream=[80,76,78,79]  agg=317  ttft=[0.3-0.4s]
-phase=structured c=8   agg=424  per_stream~53
-phase=prose       c=1   median_decode=28.1   ttft=0.17s  agg=28.1   (n=3)
-phase=prose       c=2   agg=54.3
-phase=prose       c=4   agg=86.9
-phase=prose       c=8   agg=139.5
-1200-token count c1 x2: 9.42s/85 rounds 128 tok/s; 9.37s 85 rounds 130 tok/s
-400-token count c1 x4 sustained: 134/135/134/136 tok/s, 14.3 tok/round
-400-token count STREAM c1 x3: 128.4 tok/s TRUE (29 chunks 13.8 tok/chunk), first chunk 183ms
-3x parallel fibonacci 143tok: byte-identical replies sha 770966ef x3, wall 14.6s, 29.4 tok/s agg cold-boot
-2+2 ping: TTFT 1.08s cold boot, correct, 2 tokens
-```
+The cells an agent workload actually looks like. `tools/vendor/bench_concurrent.py` (TensorFold's), short prompts, greedy, 2 reps, every concurrent reply checked byte-equal to the same request alone (all equal). Aggregate tok/s, per-stream in brackets. Receipts: [`evidence/s10-tf066/replies-512-1024/`](evidence/s10-tf066/replies-512-1024/).
 
-**124ms/round NCCL mystery:** 2026 GB10 driver 580.178.04 floor. sfxnz 9.3ms/round = 610 driver.
-CUDA Forward Compatibility mode ENABLED in container (13.3 driver / 580 kernel) — 610 compat next
-boot → c1 137 → 500+ projected. Host reboot required.
+| Reply tokens | Workload | 1 user | 2 users | 4 users |
+|---|---|---:|---:|---:|
+| 512 | code | 106 | 197 (98) | 332 (83) |
+| 512 | chat | 90 | 161 (81) | 278 (70) |
+| 1024 | code | 86 | 155 (78) | 260 (65) |
+| 1024 | chat | 99 | 180 (90) | 301 (75) |
 
-### int8 vs bf16 KV
+The same with a 1,000-token system prompt in front (`tools/bench_longctx_concurrent.py --prompt-tokens 1000 --tokens 1024`, distinct prompts per stream, steady aggregate while every stream decodes):
 
-sfxnz measured bf16: c1 struct 249, prose 69. Ours int8: c1 struct 68-136, prose 28. int8 NOT the
-problem — same 124ms/round both. c8 int8 agg 424 vs bf16 372. int8 = 2.1M KV pool vs 97.8GiB bf16
-262k x 8. Keep int8.
+| Workload | 1 user | 2 users | 4 users |
+|---|---:|---:|---:|
+| code (LRU cache module + tests, ends at EOS) | 128 | 188 | 267 |
+| prose (400-word story) | 75 | 107 | 163 |
 
-### MTP drafts 15 @ 0.70
+Slowest first token in any cell: 0.1 s. Four users on 512-token replies reach 280-330 tok/s aggregate, so the low end of the eight-user figure is available at concurrency 4. Code slows from 512 to 1024 tokens while chat does not: the second half of the code reply is the test file, which drafts worse than the class it tests.
 
-sfnxz default 6. 15 = +42-46% structured, +10% JSON, +4% code (their README). drafts 487 accepted
-375 = 77% accept. 14.1 tok/round warm, 400tok = 28 rounds. Keep 15.
+### Four streams at 250k tokens each (1M tokens live on the pair)
 
-### 4 concurrent + 8 max
+`tools/bench_longctx_concurrent.py`: four distinct 250k-token system prompts, four requests started together, greedy, thinking off, 512-token replies. Receipts and the engine's own per-request lines: [`evidence/s10-tf066/longctx-c4/`](evidence/s10-tf066/longctx-c4/).
 
-`PROFILE=concurrent` = pr141 patch, --parallel 8. Two-rank parallel: text only, no structured output
-(`response_format` 400), no grammars/logprobs/images. Serial profile (`PROFILE=serial`) = 1 stream,
-structured output WORKS, xgrammar. Pick per boot.
+| Cell | TTFT per stream | Per stream | Aggregate |
+|---|---|---:|---:|
+| cold: four distinct prompts, 1,001,268 tokens | 181 / 322 / 437 / 528 s | 0.9-1.5 tok/s while the others still fill | about 1,900 prompt tok/s |
+| warm: the same prompts cached, prose | 1.7 s each | 29-30 tok/s | **116 tok/s** |
+| warm: the same prompts cached, code | 1.6 s each | 52 tok/s (99 rounds for 512 tokens) | **209 tok/s** |
+| reference: four streams at 8k, prose | | | 154 tok/s |
 
-## Install (fresh 2× DGX Spark, 0 → serving 45 min)
+Memory is not the limit: with four full windows live the head still had 21 GiB available. Time is. A round with four streams attending over 250k tokens each costs about 100-130 ms against 61 ms at short context, and tokens per round stay what the text allows (2 for prose, 5 for code). Eight short-prompt streams reach 319-439 tok/s; four streams at 1M of context reach 116-209.
 
-```bash
-# NODE 1 (head, 10.0.0.20) and NODE 2 (worker, 10.0.0.30) — GB10, 128GB, ConnectX-7 link direct
-# 1. ssh-copy-id worker, docker + NVIDIA container toolkit on both
-# 2. head: clone sfxnz repo + this repo's run.sh/.env.cluster/start-systemd.sh
-git clone https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark.git qwen38-flashnext-tensorfold
-cd qwen38-flashnext-tensorfold
-# edit .env.cluster: YOUR head IP, worker ssh, PORT 8888, KV_DTYPE int8, MTP_DRAFTS 15
-# 3. image build 25GB (11min) + 113GB download (35min) + rsync worker 73GB (13min) — run.sh does ALL
-./run.sh   # PROFILE=serial default; PROFILE=concurrent for 8 streams
-# 4. first boot: CUDA kernels JIT 5 ext (~4min), then Ready
-# 5. systemd (optional, autostart on boot):
-cp qwen38-tensorfold.service /etc/systemd/system/  # edit User=, paths
-systemctl daemon-reload && systemctl enable qwen38-tensorfold
-```
+Two behaviours to plan around:
 
-## Stop
+- **A long prompt filling starves live replies.** On CUDA `--decode-share` defaults to 0: a prompt pass takes the whole shared round, and a stream that was answering drops to about 1 tok/s until the fill ends. A nonzero share (`EXTRA_ARGS="--decode-share 0.5"`, forwarded to both ranks) sizes the passes so decoding keeps that fraction, at the cost of slower prefill. Not measured here yet.
+- **Eight resumable prompts.** The concurrent decoder keeps 8 prompt states (`KEEP = 8`). Four 8k requests between two 250k passes evicted the 250k states, and the next pass re-prefilled all 1M tokens (about 9 minutes). A 1M-token working set means at most eight conversations resume for free.
 
-```bash
-./stop.sh          # stops both ranks, containers removed, weights kept
-systemctl stop qwen38-tensorfold   # if systemd started it
-```
+### Quality: tool calls
+
+`quality/t2.py --tasks tools`: 30 tool prompts, each non-streamed and streamed, exact tool name and exact argument set. **56 of 60** on TensorFold 0.6.6 with the patch ([`t2-tools/t2.json`](evidence/s10-tf066/t2-tools/t2.json), [`t2.jsonl`](evidence/s10-tf066/t2-tools/t2.jsonl)); the base recipe measured 52 of 60 on 0.6.2. All four misses are the same prompt pair, `t27` and `t47`, streamed and non-streamed: the model calls `translate_text` with the right text and language and adds `"formal": false`. That tool *declares* `formal` as an optional boolean, so the call is valid against its schema and the patch keeps it; the harness wants the exact key set and counts it as a miss. The two other 0.6.2 misses (a wrong tool on one prompt, a second unrequested call on another) did not recur. Streamed and non-streamed arguments were identical on all 30 prompts.
+
+The base recipe's other quality gates (GSM8K-250 95.2%, IFEval-120 86.7%, JSON schema 30/30, needles 24/24 and 6/6 at 250k) were measured on TensorFold 0.6.2 with the same checkpoint and have not been rerun on 0.6.6.
 
 ## Requirements
 
-- 2× DGX Spark GB10 128GB, ConnectX-7 QSFP direct link, IPv4 10.0.0.x/24 on link
-- Docker + NVIDIA container toolkit, key-based ssh head→worker
-- 250 GB disk each (113G weights + 25G image + torch caches)
-- ~20 ports free, CUDA 13.3 compat (driver 580.178+)
-- 20 CPU cores each (aarch64 GB10)
-- Worker HF cache chown USER: `sudo chown -R USER:USER ~/.cache/huggingface` (head rsync)
+- Two DGX Sparks on the QSFP RoCE link (this cluster: `10.0.0.20` head, `10.0.0.30` worker; stock NVIDIA images use `10.100.8.1` / `10.100.8.2`)
+- Docker + NVIDIA Container Toolkit on both nodes, key-based SSH from the head to the worker
+- About 115 GB free disk per node for the weights (113.2 GB snapshot), plus 24.5 GB for the image
+- Exclusive GPUs. `run.sh` refuses to start next to another `--gpus all` container (a `buildx_buildkit_*` builder is allowed).
+
+```bash
+hf auth login      # or: export HF_TOKEN=hf_...
+```
+
+## Quick start
+
+On the head Spark:
+
+```bash
+git clone https://github.com/BobClawblaw/qwen38-flashnext-tensorfold-2x-dgx-sparks.git qwen38-flashnext-tensorfold
+cd qwen38-flashnext-tensorfold
+$EDITOR .env.cluster        # HEAD_IP, WORKER_HOST=user@worker, PORT, KV_DTYPE, MTP_DRAFTS, HCA
+VALIDATE_ONLY=1 ./run.sh    # checks the settings, no Docker
+PROFILE=concurrent ./run.sh # eight streams; plain ./run.sh serves one at a time (and response_format)
+```
+
+The head checks that the weights are complete on its disk, builds the image when it is missing (about 2 minutes on top of the base image, which it pulls once), copies it to the worker when the worker's image ID differs (24.5 GB over the link), starts rank 1 on the worker over SSH, then rank 0, and waits for `/health` and `/v1/models`. A first start of a new engine commit JIT-compiles the CUDA kernels (several minutes); later starts load in about 45 s.
+
+Autostart on boot:
+
+```bash
+sudo cp qwen38-tensorfold.service /etc/systemd/system/
+sudoedit /etc/systemd/system/qwen38-tensorfold.service   # User=, paths
+sudo systemctl daemon-reload && sudo systemctl enable --now qwen38-tensorfold
+```
+
+`systemctl stop qwen38-tensorfold` (or `./stop.sh`) stops rank 0 first with SIGTERM, then waits for rank 1 and removes both containers. Do not run `./run.sh` by hand while the unit is active: two orchestrators, one pair.
+
+Smoke test (thinking is off by default):
+
+```bash
+curl -s http://127.0.0.1:8888/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP",
+    "messages": [{"role": "user", "content": "Say hello in one sentence."}],
+    "max_tokens": 64,
+    "temperature": 0
+  }'
+```
+
+Probes and gates against the live API (`--url http://127.0.0.1:8888/v1/chat/completions` on this cluster; the scripts default to port 8000):
+
+```bash
+python3 smoke_thinking.py --model TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP --url http://127.0.0.1:8888/v1/chat/completions
+python3 smoke_tools.py    --model TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP --url http://127.0.0.1:8888/v1/chat/completions
+python3 bench_decode.py   --model TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP --url http://127.0.0.1:8888/v1/chat/completions
+python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-tools
+```
+
+## Defaults
+
+`recipe.yaml` is the source of truth for the shipped defaults. Edit it, then run `python3 kit/render.py`. CI fails when this table or the `run.sh` block drifts from it. `.env.cluster` overrides them per cluster; this cluster's file sets `PORT=8888`, `KV_DTYPE=int8`, `MTP_DRAFTS=15`, `HCA=rocep1s0f1`.
+
+<!-- BEGIN generated defaults from recipe.yaml — edit recipe.yaml and run kit/render.py -->
+| Setting | Value |
+|---|---|
+| Engine | TensorFold `cb2ebf0540f42604e2759b2ddef497861e928248` (v0.6.6), built into `tf-qwen38-flashnext:0.6.6` from `docker/Dockerfile` |
+| Patch | `patches/undeclared-tool-args-0.6.6.patch`: a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`) |
+| Model | `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` at `2b170fa6309d5d1ee380b35636075fac7945f286` |
+| Ranks | `--tp 2`: rank 1 on `spark2` first, then rank 0 (HTTP) on the head; rendezvous `10.100.8.1:29551` |
+| `--context` | 262144 (the native window, on both ranks) |
+| `--kv-dtype` | `bf16` |
+| MTP drafts | `--mtp-drafts 15 --mtp-confidence 0.70` |
+| `--parallel` | 1 by default; `PROFILE=concurrent` (or `PARALLEL=8`) serves eight streams on two ranks (TensorFold 0.6.4+) |
+| Default thinking | off (`THINKING=0`); requests override with `chat_template_kwargs.enable_thinking` |
+| `--max-tokens` | 4096 (the reply cap when a request sets none) |
+| NCCL | `NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1`, `NCCL_SOCKET_IFNAME=enp1s0f1np1` |
+| API | `http://<head>:8000/v1`, served as `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` |
+| Container | `tf-qwen38-flashnext` |
+<!-- END generated defaults -->
+
+`run.sh` refuses, before `VALIDATE_ONLY` exits:
+
+- non-decimal or zero-padded integers, `MTP_CONFIDENCE` outside [0, 1], a `TF_SHA` / `SNAPSHOT_SHA` that is not 40 hex
+- `TP` other than 1 or 2, `CONTEXT` above the native 262144 (TensorFold serves no YaRN), `MTP_DRAFTS` above the engine cap 15, `KV_DTYPE` other than bf16 / int8 / int4
+- a `TF_PATCH` that is not `none` or a pinned file under `docker/patches/`, or whose sha256 differs from its pin
+- `EXTRA_ARGS` that re-sets a flag `run.sh` builds (`--tp`, `--rank`, `--master*`, `--host`, `--port`, `--name`, `--context`, `--kv-dtype`, `--mtp-*`, `--parallel`, `--thinking`, `--max-tokens`, `--no-drafts`), `--vision*` (one GPU only), and `--prefill-fp8` / `--drafter` / `--ple-on-ssd` / `--ssd-experts` (refused or unused for this checkpoint)
+- an `EXTRA_ENV` word that is not `KEY=VALUE`
+
+At start it also refuses another running GPU container on either node, a busy port, an image whose labels do not match `TF_SHA` / the patch sha, and an incomplete snapshot when `SKIP_DOWNLOAD=1`. `BENCH_ONLY=1` binds the API to 127.0.0.1. `MTP_DRAFTS=0` serves without drafts.
+
+## Not supported (TensorFold 0.6.6 on two ranks)
+
+- With `--parallel` above 1: no `response_format` / `guided_*` grammars (HTTP 400), no logprobs, no images. The serial default serves `response_format` through xgrammar on both ranks.
+- Each request decodes to `max_tokens` or EOS on both ranks. A client disconnect, a stop string, a forced `tool_choice` and a `thinking_budget` cut stop what is sent, not the GPU work. Set `max_tokens` per request; `MAX_TOKENS` (default 4096) applies when a request sets none, and a thinking reply can spend all of it inside the think block.
+- A rank that dies mid-request leaves the other waiting in NCCL with no timeout, and `/health` on rank 0 does not check rank 1. Restart with `systemctl restart qwen38-tensorfold` (or `./stop.sh && ./run.sh`).
+- No `n > 1`, no `/tokenize` at two ranks, no presence/frequency penalties (ignored). The reasoning field is `reasoning_content`. The default seed is a hash of the prompt, so identical sampled requests repeat unless they carry a `seed`.
+
+## Environment
+
+`.env.cluster` (this cluster's values; `user@` is the worker's SSH login):
+
+```bash
+HEAD_IP=10.0.0.20
+WORKER_HOST=user@10.0.0.30
+PORT=8888
+KV_DTYPE=int8
+MTP_DRAFTS=15
+HCA=rocep1s0f1
+```
+
+Everything in the Defaults table can go there (`IFACE`, `CONTEXT`, `MAX_TOKENS`, `PARALLEL`, `MEMORY_RESERVE_GIB`, …). A variable already in the environment wins over the file; `ENV_CLUSTER=/dev/null` ignores it (tests and CI do).
+
+Pin `NCCL_IB_HCA`: GB10 exposes four HCAs and two of them are DOWN; unpinned NCCL can pick a dead one. `TF_CACHE` holds the kernel builds per engine commit (default `~/.cache/tensorfold-qwen38/<TF_SHA>`). `MEMORY_RESERVE_GIB` sets TensorFold's startup reserve. Memory per rank at the full window with int8 KV: TensorFold's startup estimate is 45.6 GiB on the GPU plus the 29.8 GiB n-gram tables mlocked in host memory (`--ulimit memlock` and `IPC_LOCK` are passed for that). Read unified memory with `free -h`, not `nvidia-smi`.
+
+The NGC base image sets `NCCL_NET_PLUGIN=spcx`; NCCL logs that the Spectrum-X plugin is unsupported on these HCAs and falls back to its own RoCE transport. The warning is cosmetic; one 1,500-token reply moves about 1.9 GB over the link.
+
+## Logs
+
+```bash
+docker logs -f tf-qwen38-flashnext
+ssh user@10.0.0.30 docker logs -f tf-qwen38-flashnext
+journalctl -u qwen38-tensorfold -b
+```
+
+TensorFold prints one `done req-…` line per request: tokens, tok/s, TTFT, prefill time, verify rounds, accepted drafts and the reply's token sha. `GET /health` carries cumulative counters and the live decode and prefill speed; `GET /metrics` is Prometheus with the `tensorfold:` prefix.
+
+## Evidence
+
+Every number in this README has a file under [`evidence/`](evidence/). This fork's session is [`s10-tf066`](evidence/s10-tf066/); `s1` to `s9` are the base recipe's (TensorFold 0.6.2) and are kept as its receipts. `recipe.yaml` names the file per measured row; `python3 kit/render.py --check` lists the rows that still have none.
+
+## Gotchas
+
+- TensorFold opens HTTP only after the model is loaded, so "connection refused" means still loading.
+- The first request after a boot is slower than the rest (prompt warm-up in the concurrent decoder); the tables are from repeated runs on the same boot.
+- `docker stop` on a rank without `--init` would wait out its timeout: TensorFold's rank 1 installs no SIGTERM handler. `run.sh` passes `--init`.
+- A buildx builder container (`buildx_buildkit_*`) is exempt from the foreign-GPU-container check; anything else holding the GPU makes `run.sh` refuse to start.
+- The `TensorFold/` repo id prints a cosmetic "untested" note at start (TensorFold lists the checkpoint under its old `Vontra/` name).
+
+## Credits
+
+- Base recipe: [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT): `run.sh`, `stop.sh`, `kit/`, `tests/`, `tools/`, `quality/`, the smokes, `bench_decode.py` and `evidence/s1` to `s9`.
+- Engine: [TensorFold](https://github.com/ashhart/TensorFold) (Apache-2.0 from 0.6.0; earlier code MIT), tag v0.6.6. Two-rank `--parallel` is upstream's (#141 by BHCC2025 and ashhart). `tools/vendor/bench_concurrent.py` is TensorFold's, unmodified.
+- Checkpoint: [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP); base model Qwen3.8-Flash-Next.
+- Harness: `bench_decode.py`, the smokes and `quality/` come from the vLLM sibling recipe ([sfxnz/Qwen3.8-Flash-Next-NVFP4-vLLM-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-NVFP4-vLLM-2x-DGX-Spark)).
 
 ## License
 
-Apache-2.0, same as sfxnz recipe and TensorFold. Checkpoint: Qwen, MLX 4-bit conversion by TensorFold org.
+The recipe's own files are MIT ([`LICENSE`](LICENSE)). `docker/patches/undeclared-tool-args-0.6.6.patch` changes TensorFold source: Apache-2.0, provenance and changes in [`docker/patches/README.md`](docker/patches/README.md). `tools/vendor/bench_concurrent.py` is TensorFold's, unmodified: MIT and Apache-2.0, per its header. Upstream's notice is in [`NOTICE`](NOTICE) and the license texts are in [`LICENSES/`](LICENSES/). Model weights follow the source model license on Hugging Face.

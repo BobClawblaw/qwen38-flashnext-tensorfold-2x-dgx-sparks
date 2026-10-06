@@ -1,0 +1,13 @@
+[tensorfold] done req-… prompt=8029 cached=0 thinking=False tokens=256 sha=a7a2bb46052c finish=length tok/s=17.0 ttft=3.74s prefill=2.61s rounds=124 accepted=131/202
+[tensorfold] done req-… prompt=8059 cached=0 thinking=False tokens=256 sha=05643b493aaf finish=length tok/s=22.7 ttft=7.71s prefill=1.96s rounds=122 accepted=133/209
+[tensorfold] done req-… prompt=8136 cached=0 thinking=False tokens=256 sha=5bbc1fdc4c5f finish=length tok/s=27.1 ttft=10.18s prefill=1.35s rounds=138 accepted=117/195[tensorfold] done req-1df0efdfa2
+[tensorfold] done req-… prompt=250236 cached=0 thinking=False tokens=256 sha=5af2c78aa697 finish=length tok/s=1.7 ttft=320.78s prefill=69.81s rounds=134 accepted=121/202
+[tensorfold] done req-… prompt=250335 cached=0 thinking=False tokens=256 sha=5a84b56306a7 finish=length tok/s=2.7 ttft=435.59s prefill=65.76s rounds=137 accepted=118/214
+[tensorfold] done req-… prompt=250335 cached=250334 thinking=False tokens=512 sha=53d36a2ee5aa finish=length tok/s=29.9 ttft=0.61s prefill=0.07s rounds=257 accepted=254/413
+[tensorfold] done req-… prompt=250236 cached=250235 thinking=False tokens=512 sha=c1af21944d41 finish=length tok/s=29.1 ttft=0.27s prefill=0.06s rounds=266 accepted=245/390
+[tensorfold] done req-… prompt=8059 cached=0 thinking=False tokens=512 sha=7beb0e127941 finish=length tok/s=29.7 ttft=7.70s prefill=1.95s rounds=258 accepted=253/416
+[tensorfold] done req-… prompt=8029 cached=0 thinking=False tokens=512 sha=67ab537b1d43 finish=length tok/s=24.0 ttft=3.78s prefill=2.66s rounds=267 accepted=244/415
+[tensorfold] done req-… prompt=8091 cached=0 thinking=False tokens=512 sha=11641043d6e8 finish=length tok/s=38.9 ttft=12.51s prefill=1.66s rounds=270 accepted=241/410
+[tensorfold] done req-… prompt=8136 cached=0 thinking=False tokens=512 sha=63123d70e4f4 finish=length tok/s=32.0 ttft=10.10s prefill=1.36s rounds=281 accepted=230/401
+[tensorfold] done req-… prompt=250247 cached=0 thinking=False tokens=512 sha=63f2a4f3ffb7 finish=length tok/s=4.5 ttft=315.73s prefill=88.03s rounds=99 accepted=412/545
+[tensorfold] done req-… prompt=250346 cached=250345 thinking=False tokens=512 sha=22cfb84be543 finish=length tok/s=52.2 ttft=0.94s prefill=0.72s rounds=99 accepted=412/559[tensorfold] done req-22989

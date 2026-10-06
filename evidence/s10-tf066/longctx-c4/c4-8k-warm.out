@@ -1,0 +1,5 @@
+STREAM {"stream": 0, "prompt_tokens": 8059, "completion_tokens": 512, "ttft_s": 7.83, "decode_tok_s": 15.0, "chunks": 259}
+STREAM {"stream": 1, "prompt_tokens": 8029, "completion_tokens": 512, "ttft_s": 3.89, "decode_tok_s": 12.5, "chunks": 268}
+STREAM {"stream": 2, "prompt_tokens": 8091, "completion_tokens": 512, "ttft_s": 12.61, "decode_tok_s": 20.5, "chunks": 271}
+STREAM {"stream": 3, "prompt_tokens": 8136, "completion_tokens": 512, "ttft_s": 10.23, "decode_tok_s": 17.6, "chunks": 282}
+SUMMARY {"streams": 4, "prompt_tokens_target": 8000, "tokens": 512, "ok": 4, "wall_s": 26.2, "prompt_tokens_total": 32315, "aggregate_tok_s_first_to_last": 91.7, "steady_tok_s_all_decoding": 153.8, "overlap_s": 12.4}

@@ -1,0 +1,2 @@
+STREAM {"stream": 0, "prompt_tokens": 1026, "completion_tokens": 510, "ttft_s": 0.51, "decode_tok_s": 127.1, "chunks": 95}
+SUMMARY {"task": "code", "streams": 1, "prompt_tokens_target": 1000, "tokens": 1024, "ok": 1, "wall_s": 4.5, "prompt_tokens_total": 1026, "aggregate_tok_s_first_to_last": 128.4, "steady_tok_s_all_decoding": 128.4, "overlap_s": 4.0}

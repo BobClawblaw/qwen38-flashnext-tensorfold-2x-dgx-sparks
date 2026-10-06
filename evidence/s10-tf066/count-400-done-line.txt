@@ -1,0 +1,1 @@
+[tensorfold] done req-939b4b035798 prompt=31 cached=30 thinking=False tokens=1492 sha=23cdd778a57b finish=stop tok/s=220.8 ttft=0.07s prefill=0.02s rounds=110 accepted=1381/1537
