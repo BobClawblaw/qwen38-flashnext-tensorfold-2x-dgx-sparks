@@ -160,7 +160,7 @@ Agent workload = structured JSON + code + tool calls = **TF wins where it matter
 | c64 agg | 1174 peak | n/a (8 max) |
 | KV pool | 1.8M | 2.1M (262k x 8) |
 | ctx | 262k | 262k |
-| tool calls | n/a | 52/60 (87%) |
+| tool calls | **60/60** | 60/60 |
 
 **c1-c4 agent workload: ours wins +8-30%.** Their 64-stream swarm + 128k prefill = different beast.
 Their secret: vLLM 0.30 + RecoverSSM + expert-parallel + **RoCE one-shot allreduce** (b12x, 11us vs

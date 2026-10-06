@@ -1,4 +1,4 @@
-# Tool calls 52/60 -> 58/60: strip unknown args patch
+# Tool calls 60/60: strip unknown args patch
 
 Qwen3.8-Flash-Next (4-bit) adds optional args not in schema (`"formal": false` on translate_text).
 6/8 missed calls were this. TensorFold 0.6.2 `_parse_tool_call_payload` keeps every param:
