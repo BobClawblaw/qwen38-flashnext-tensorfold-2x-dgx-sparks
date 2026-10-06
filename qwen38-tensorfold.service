@@ -1,0 +1,20 @@
+[Unit]
+Description=Qwen3.8-Flash-Next TensorFold TP2 (gx10+xspark) on 8888
+After=network-online.target docker.service
+Wants=network-online.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=YOUR_USER
+WorkingDirectory=/opt/qwen38-flashnext-tensorfold
+Environment=HOME=/opt/qwen38-flashnext-tensorfold
+Environment=PATH=/opt/qwen38-flashnext-tensorfold/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PROFILE=concurrent
+EnvironmentFile=/opt/qwen38-flashnext-tensorfold/.env.cluster
+ExecStart=/opt/qwen38-flashnext-tensorfold/start-systemd.sh
+ExecStop=/opt/qwen38-flashnext-tensorfold/stop.sh
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=900
+[Install]
+WantedBy=multi-user.target

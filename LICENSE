@@ -1,0 +1,4 @@
+Apache License 2.0, same as sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark and TensorFold.
+Engine: TensorFold 0.6.2 (Apache-2.0) by Ash Hart + contributors.
+Checkpoint: TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP (Qwen, MLX 4-bit conversion by TensorFold org).
+pr141 two-rank --parallel patch: upstream PR #141 by TensorFold contributors, ported by sfxnz.
