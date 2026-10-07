@@ -1,0 +1,9 @@
+# one stream, greedy, thinking off, TensorFold 0.6.6 PARALLEL=16, 2026-10-07; TensorFold's own counters (tensorfold.* fields of the reply)
+prose: write fresh (essay)          687 tok    72.5 tok/s  rounds= 332  tok/round=2.1  accepted=354/611
+prose: copy verbatim                900 tok   129.8 tok/s  rounds= 136  tok/round=6.6  accepted=763/1128
+prose: light edit (fix typos)       900 tok   124.3 tok/s  rounds= 146  tok/round=6.2  accepted=753/1119
+code: write fresh                   900 tok   126.8 tok/s  rounds= 159  tok/round=5.7  accepted=740/1019
+code: refactor (rename var)         848 tok   135.2 tok/s  rounds= 133  tok/round=6.4  accepted=714/943
+# prompts: "Write a 500-word essay about lighthouses."; "Repeat the following text exactly, verbatim" + 3.2 kB of README prose;
+# "Fix any typos ... return the full corrected text" + the same passage; "Write a Python module implementing a thread-safe LRU cache with tests.";
+# "rename the variable `out` to `results` everywhere and return the complete code" + 3.2 kB of tools/bench_longctx_concurrent.py
