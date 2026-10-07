@@ -10,6 +10,8 @@ This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://git
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
 - **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, sixteen streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
 
+What changed when is in [`CHANGELOG.md`](CHANGELOG.md).
+
 Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, sparse attention, hyper-connections, hashed n-gram (PLE) tables and one MTP layer. The checkpoint is MLX affine 4-bit (group 32) on every linear, including the n-gram tables and the MTP head. It is the only Flash Next format TensorFold serves on two ranks: NVFP4 and EXL3 exports run on one GPU only. Pinned snapshot: `2b170fa6309d5d1ee380b35636075fac7945f286`.
 
 TensorFold runs inside `nvcr.io/nvidia/pytorch:26.07-py3` (digest-pinned), built locally from [`docker/Dockerfile`](docker/Dockerfile). Its kernels JIT-compile for sm_121 on the first start of each engine commit and are cached on the host after that. Rank 1 runs on the worker, rank 0 serves HTTP on the head; partials are all-gathered over NCCL on the QSFP RoCE link.
