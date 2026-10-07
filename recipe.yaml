@@ -15,7 +15,7 @@ image:
   base: nvcr.io/nvidia/pytorch:26.07-py3
   digest: sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c
   local_tag: &image tf-qwen38-flashnext:0.6.6
-  build: docker/Dockerfile (pip install TensorFold at TF_SHA plus xgrammar 0.2.8; torch/triton from the base, checked)
+  build: docker/Dockerfile (pip install TensorFold at TF_SHA plus xgrammar 0.2.8 and PyAV 19.0.1 for video input; torch/triton from the base, checked)
 
 engine:
   name: tensorfold
@@ -24,7 +24,7 @@ engine:
   commit: &tf_sha cb2ebf0540f42604e2759b2ddef497861e928248
   # sha256 of every shipped patch under docker/patches/ (run.sh PATCH_PINS must match; tests/ check the files).
   patches:
-    flashnext-tools-0.6.6.patch: 21856080aab5d183b6878a3534cfa9c242688fb9f83acdcd76b015ad842f7241
+    flashnext-tools-0.6.6.patch: 678f6fdc734bd757651484b41f2bab7577e852f6a319d0132806eba44ccc41f3
 
 hardware:
   shape: 2x DGX Spark (GB10)
@@ -55,6 +55,9 @@ serve:
     THINKING: 0
     MAX_TOKENS: 32768
     TOOL_SYSTEM: "Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values."
+    VISION: 0
+    VISION_URLS: 0
+    VISION_MAX_IMAGES: ""
     MEMORY_RESERVE_GIB: ""
     HF_CACHE: $HOME/.cache/huggingface
     SNAPSHOT_SHA: *revision
@@ -73,7 +76,8 @@ readme:
   # Rows of the README "Defaults" table. {NAME} is replaced by serve.env.NAME.
   defaults:
     - Engine: "TensorFold `{TF_SHA}` (v0.6.6), built into `{IMAGE}` from `docker/Dockerfile`"
-    - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, and a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`)"
+    - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, and image input on two ranks (`docker/patches/README.md`)"
+    - Images: "`VISION={VISION}`: off. `VISION=1` with `PROFILE=concurrent` serves `image_url` and `video_url` parts; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4)"
     - Tool system message: "`{TOOL_SYSTEM}` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none)"
     - Model: "`{MODEL}` at `{SNAPSHOT_SHA}`"
     - Ranks: "`--tp {TP}`: rank 1 on `{WORKER_HOST}` first, then rank 0 (HTTP) on the head; rendezvous `{HEAD_IP}:{MASTER_PORT}`"

@@ -51,6 +51,9 @@ PARALLEL="${PARALLEL:-1}"
 THINKING="${THINKING:-0}"
 MAX_TOKENS="${MAX_TOKENS:-32768}"
 TOOL_SYSTEM="${TOOL_SYSTEM:-Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.}"
+VISION="${VISION:-0}"
+VISION_URLS="${VISION_URLS:-0}"
+VISION_MAX_IMAGES="${VISION_MAX_IMAGES:-}"
 MEMORY_RESERVE_GIB="${MEMORY_RESERVE_GIB:-}"
 HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
 HF_HOME_IN_CONTAINER="/cache/huggingface"
@@ -78,7 +81,7 @@ MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/flashnext-tools-0.6.6.patch]=21856080aab5d183b6878a3534cfa9c242688fb9f83acdcd76b015ad842f7241
+  [patches/flashnext-tools-0.6.6.patch]=678f6fdc734bd757651484b41f2bab7577e852f6a319d0132806eba44ccc41f3
 )
 
 die() {
@@ -91,9 +94,13 @@ for name in PORT MASTER_PORT TP CONTEXT PARALLEL MAX_TOKENS MEMGUARD_MIN_AVAIL_M
   [[ "${!name}" =~ ^[1-9][0-9]*$ ]] || die "$name=${!name} is not a positive decimal integer."
 done
 [[ "$MTP_DRAFTS" =~ ^(0|[1-9][0-9]*)$ ]] || die "MTP_DRAFTS=$MTP_DRAFTS is not a non-negative decimal integer."
-for name in THINKING SKIP_DOWNLOAD HF_HUB_DISABLE_XET MEMGUARD BENCH_ONLY; do
+for name in THINKING SKIP_DOWNLOAD HF_HUB_DISABLE_XET MEMGUARD BENCH_ONLY VISION VISION_URLS; do
   [[ "${!name}" =~ ^[01]$ ]] || die "$name=${!name} must be 0 or 1."
 done
+[[ -z "$VISION_MAX_IMAGES" || "$VISION_MAX_IMAGES" =~ ^[1-9][0-9]*$ ]] || die "VISION_MAX_IMAGES=$VISION_MAX_IMAGES is not empty or a positive decimal integer."
+# Images need the concurrent decoder: the patch (part 4) serves them on two ranks with --parallel 2 or more
+# (rank 0 encodes, rank 1 receives the features); the serial engine has no image rows.
+[[ "$VISION" == 1 && "$PARALLEL" -lt 2 ]] && die "VISION=1 needs PARALLEL=2 or more (PROFILE=concurrent): image input runs on the concurrent decoder, on one GPU or on two ranks."
 [[ "$OOM_SCORE_ADJ" =~ ^(-?[1-9][0-9]*|0)$ ]] && (( OOM_SCORE_ADJ >= -1000 && OOM_SCORE_ADJ <= 1000 )) || die "OOM_SCORE_ADJ=$OOM_SCORE_ADJ must be an integer in [-1000, 1000]."
 [[ "$MTP_CONFIDENCE" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || die "MTP_CONFIDENCE=$MTP_CONFIDENCE must be a decimal in [0, 1], e.g. 0.70."
 [[ -z "$MEMORY_RESERVE_GIB" || "$MEMORY_RESERVE_GIB" =~ ^[1-9][0-9]*(\.[0-9]+)?$ ]] || die "MEMORY_RESERVE_GIB=$MEMORY_RESERVE_GIB is not empty or a positive decimal."
@@ -141,17 +148,13 @@ done
 # --- EXTRA_ARGS must not re-set a flag run.sh builds; argparse keeps the last value, so a duplicate
 # would bypass the guard on its variable or desynchronise the two ranks. TensorFold's parser expands
 # unambiguous prefixes (--paral means --parallel), so any prefix of a guarded flag is refused too.
-OWNED_FLAGS="--tp --rank --master --master-port --host --port --name --context --kv-dtype --mtp-drafts --mtp-confidence --parallel --thinking --no-thinking --max-tokens --no-update-check --no-drafts --tool-system"
-VISION_FLAGS="--vision --vision-urls --vision-max-images"
-UNUSED_FLAGS="--prefill-fp8 --drafter --ple-on-ssd --ssd-experts"
+OWNED_FLAGS="--tp --rank --master --master-port --host --port --name --context --kv-dtype --mtp-drafts --mtp-confidence --parallel --thinking --no-thinking --max-tokens --no-update-check --no-drafts --tool-system --vision --vision-urls --vision-max-images"
+UNUSED_FLAGS="--prefill-fp8 --drafter --ple-on-ssd --ssd-experts --vision-offload --vision-image-tokens"
 for w in $EXTRA_ARGS; do
   f="${w%%=*}"
   [[ "$f" == --?* ]] || continue
   for g in $OWNED_FLAGS; do
-    [[ "$g" == "$f"* ]] && die "EXTRA_ARGS sets $w (argparse reads it as $g), which run.sh passes itself. Use TP, PORT, MASTER_PORT, SERVED_NAME, CONTEXT, KV_DTYPE, MTP_DRAFTS (0 = no drafts), MTP_CONFIDENCE, PARALLEL, THINKING or MAX_TOKENS instead."
-  done
-  for g in $VISION_FLAGS; do
-    [[ "$g" == "$f"* ]] && die "EXTRA_ARGS sets $w ($g): TensorFold serves Flash Next images on one GPU with --parallel 2 or more only (engine.py:50-51)."
+    [[ "$g" == "$f"* ]] && die "EXTRA_ARGS sets $w (argparse reads it as $g), which run.sh passes itself. Use TP, PORT, MASTER_PORT, SERVED_NAME, CONTEXT, KV_DTYPE, MTP_DRAFTS (0 = no drafts), MTP_CONFIDENCE, PARALLEL, THINKING, MAX_TOKENS, VISION, VISION_URLS or VISION_MAX_IMAGES instead."
   done
   for g in $UNUSED_FLAGS; do
     [[ "$g" == "$f"* ]] && die "EXTRA_ARGS sets $w ($g): refused or unused for the MLX 4-bit checkpoint on CUDA (README 'Not supported')."
@@ -349,6 +352,9 @@ serve_args() {
     args+=(--mtp-drafts "$MTP_DRAFTS" --mtp-confidence "$MTP_CONFIDENCE")
   fi
   (( PARALLEL > 1 )) && args+=(--parallel "$PARALLEL")
+  # --vision on both ranks (patch, part 4): the tower loads on rank 0 only; rank 1 reserves no room for it
+  # and attaches the features rank 0 sends with each image admission. Both ranks must agree on the flag.
+  [[ "$VISION" == 1 ]] && args+=(--vision)
   if [[ "$TP" == 2 ]]; then
     args+=(--tp 2 --rank "$rank" --master "$HEAD_IP" --master-port "$MASTER_PORT")
   fi
@@ -357,6 +363,9 @@ serve_args() {
     if [[ "$THINKING" == 1 ]]; then args+=(--thinking); else args+=(--no-thinking); fi
     # --tool-system (patch): the server's instruction for tool requests that carry no system message; empty = none
     [[ -n "$TOOL_SYSTEM" ]] && args+=(--tool-system "$TOOL_SYSTEM")
+    # the HTTP server's image options (rank 0 decodes the request's images): public https URLs, images a request may carry
+    [[ "$VISION" == 1 && "$VISION_URLS" == 1 ]] && args+=(--vision-urls)
+    [[ "$VISION" == 1 && -n "$VISION_MAX_IMAGES" ]] && args+=(--vision-max-images "$VISION_MAX_IMAGES")
   fi
   printf '%s\n' "${args[@]}"
 }
@@ -391,7 +400,7 @@ start_local() {
   # --init: rank 1 installs no SIGTERM handler and would ignore it as PID 1, so `docker stop` would wait
   # out its timeout. --ulimit memlock + IPC_LOCK: the 29.8 GiB n-gram tables are mlocked; without them
   # the lock fails silently and lookups can page. --ulimit core=1: no multi-GiB core dumps in host RAM.
-  log "Starting $CONTAINER_NAME rank=$rank tp=$TP ctx=$CONTEXT kv=$KV_DTYPE mtp=$MTP_DRAFTS@$MTP_CONFIDENCE parallel=$PARALLEL hca=$HCA"
+  log "Starting $CONTAINER_NAME rank=$rank tp=$TP ctx=$CONTEXT kv=$KV_DTYPE mtp=$MTP_DRAFTS@$MTP_CONFIDENCE parallel=$PARALLEL vision=$VISION hca=$HCA"
   # shellcheck disable=SC2086 # EXTRA_ARGS is word-split on purpose
   docker run -d \
     --name "$CONTAINER_NAME" \
@@ -418,7 +427,7 @@ FORWARD_VARS=(
   MODEL SERVED_NAME IMAGE TF_SHA TF_PATCH CONTAINER_NAME PORT MASTER_PORT HEAD_IP IFACE HCA TP CONTEXT KV_DTYPE
   TF_PATCH_SHA MTP_DRAFTS MTP_CONFIDENCE PARALLEL THINKING MAX_TOKENS MEMORY_RESERVE_GIB HF_CACHE SNAPSHOT_SHA
   SKIP_DOWNLOAD HF_HUB_DISABLE_XET TF_CACHE OOM_SCORE_ADJ MEMGUARD MEMGUARD_MIN_AVAIL_MB
-  MEMGUARD_MIN_SWAP_FREE_MB BENCH_ONLY EXTRA_ARGS EXTRA_ENV TOOL_SYSTEM
+  MEMGUARD_MIN_SWAP_FREE_MB BENCH_ONLY EXTRA_ARGS EXTRA_ENV TOOL_SYSTEM VISION VISION_URLS VISION_MAX_IMAGES
 )
 
 worker_env() {

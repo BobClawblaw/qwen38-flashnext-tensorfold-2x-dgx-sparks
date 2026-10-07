@@ -5,7 +5,8 @@ Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/Tensor
 This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
 - **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PROFILE=concurrent` (`PARALLEL=16`) for sixteen streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
-- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). Copy drafts: a reply whose last 8 tokens repeat earlier text drafts that text's continuation whole, up to the depth, instead of an MTP chain, so quoting, editing and refactoring decode faster with byte-identical output (`TENSORFOLD_COPY_DRAFTS=0` turns it off). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
+- **Image and video input on two ranks** (`VISION=1` with `PROFILE=concurrent`, patch part 4): rank 0 runs the checkpoint's own vision tower once per request and sends the image features to rank 1 inside the admission; both ranks attach the same rows. Upstream refuses `--vision` at `--tp 2`. Measured below: a drawn test image, a 4k-token photo and a short video answered correctly; drafted, concurrent and text-beside-images replies all byte-identical to their references; the text ruler unmoved.
+- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Four things; the last two are below. Two about tools. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). Copy drafts: a reply whose last 8 tokens repeat earlier text drafts that text's continuation whole, up to the depth, instead of an MTP chain, so quoting, editing and refactoring decode faster with byte-identical output (`TENSORFOLD_COPY_DRAFTS=0` turns it off). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
 - **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, sixteen streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
@@ -138,6 +139,22 @@ Two behaviours to plan around:
 - **A long prompt filling starves live replies.** On CUDA `--decode-share` defaults to 0: a prompt pass takes the whole shared round, and a stream that was answering drops to about 1 tok/s until the fill ends. A nonzero share (`EXTRA_ARGS="--decode-share 0.5"`, forwarded to both ranks) sizes the passes so decoding keeps that fraction, at the cost of slower prefill. Not measured here yet.
 - **Eight resumable prompts.** The concurrent decoder keeps 8 prompt states (`KEEP = 8`). Four 8k requests between two 250k passes evicted the 250k states, and the next pass re-prefilled all 1M tokens (about 9 minutes). A 1M-token working set means at most eight conversations resume for free.
 
+### Images and video on two ranks
+
+`VISION=1` on the concurrent profile (both ranks take `--vision`; the tower loads on rank 0 only). Receipts: [`evidence/s10-tf066/vision/`](evidence/s10-tf066/vision/). `tools/visioncheck.py` sends a drawn PNG (a red circle and a blue square), a photo and a video; `tools/vision_exact.py` compares reply token shas.
+
+| Cell | Result |
+|---|---:|
+| drawn PNG, "which shapes and colours" (150 prompt tokens) | "a red circle and a blue square"; 160-token reply at 84 tok/s |
+| 3840 x 2160 photo (4,101 prompt tokens, 4,096 of them visual) | correct description; prompt pass 3.2 s (text of the same length 1.7 s, so the tower adds about 1.5 s); 70 tok/s |
+| 4 s 320 x 240 video (373 prompt tokens, 2 frames a second) | "starts with a green screen, which then changes to a red screen" |
+| drafted against `"draft": false`, 4 image prompts | 4 of 4 equal |
+| 4 image requests together against each alone | 4 of 4 equal |
+| a text request beside them against alone | equal |
+| frozen text ruler with vision on (prose c=1 / c=2, structured c=1 / c=2) | 66.2 / 60.8, 231.2 / 208.6 (vision off: 65.6 / 60.3, 232.9 / 210.7) |
+
+Costs: rank 0 keeps 0.84 GiB for the tower and 4 GiB of encode workspace (`TENSORFOLD_VISION_WORKSPACE_MIB` in `EXTRA_ENV` resizes it), so it reports 53.4 GiB free for stream caches against 58.0 on rank 1 (two streams at the full window). Four 4k-token image prompts arriving together finish in 12-14 s each against 2-6 s alone: their prompt passes run one after another and `--decode-share` is 0, the same behaviour as text prompts of that size. Image prompts reuse no kept prefix (each turn of a chat with images encodes them again), and `response_format` is not served with them. Limits are TensorFold's: 4 images a request by default (`VISION_MAX_IMAGES`), data URLs only unless `VISION_URLS=1`, 16,384 visual tokens a request, up to 4,096 an image.
+
 ### Quality: tool calls
 
 `quality/t2.py --tasks tools`: 30 tool prompts, each non-streamed and streamed, exact tool name and exact argument set, judged by the sibling recipe's harness unchanged.
@@ -235,7 +252,8 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 | Setting | Value |
 |---|---|
 | Engine | TensorFold `cb2ebf0540f42604e2759b2ddef497861e928248` (v0.6.6), built into `tf-qwen38-flashnext:0.6.6` from `docker/Dockerfile` |
-| Patch | `patches/flashnext-tools-0.6.6.patch`: `--tool-system` on the CUDA server, and a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`) |
+| Patch | `patches/flashnext-tools-0.6.6.patch`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, and image input on two ranks (`docker/patches/README.md`) |
+| Images | `VISION=0`: off. `VISION=1` with `PROFILE=concurrent` serves `image_url` and `video_url` parts; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4) |
 | Tool system message | `Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none) |
 | Model | `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` at `2b170fa6309d5d1ee380b35636075fac7945f286` |
 | Ranks | `--tp 2`: rank 1 on `spark2` first, then rank 0 (HTTP) on the head; rendezvous `10.100.8.1:29551` |
@@ -262,7 +280,7 @@ At start it also refuses another running GPU container on either node, a busy po
 
 ## Not supported (TensorFold 0.6.6 on two ranks)
 
-- With `--parallel` above 1: no `response_format` / `guided_*` grammars (HTTP 400), no logprobs, no images. The serial default serves `response_format` through xgrammar on both ranks.
+- With `--parallel` above 1: no `response_format` / `guided_*` grammars (HTTP 400), no logprobs. The serial default serves `response_format` through xgrammar on both ranks. Images and video need `--parallel` (`VISION=1` with `PROFILE=concurrent`; the patch's part 4); upstream TensorFold refuses `--vision` on two ranks.
 - Each request decodes to `max_tokens` or EOS on both ranks. A client disconnect, a stop string, a forced `tool_choice` and a `thinking_budget` cut stop what is sent, not the GPU work. Set `max_tokens` per request; `MAX_TOKENS` (default 32768, clamped by the engine to the room left in the window) applies when a request sets none. The base recipe's 4096 let a thinking reply run out inside its think block and return nothing.
 - A rank that dies mid-request leaves the other waiting in NCCL with no timeout, and `/health` on rank 0 does not check rank 1. Restart with `systemctl restart qwen38-tensorfold` (or `./stop.sh && ./run.sh`).
 - No `n > 1`, no `/tokenize` at two ranks, no presence/frequency penalties (ignored). The reasoning field is `reasoning_content`. The default seed is a hash of the prompt, so identical sampled requests repeat unless they carry a `seed`.

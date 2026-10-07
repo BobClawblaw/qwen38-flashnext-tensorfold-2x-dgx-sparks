@@ -12,3 +12,4 @@ tokenizers==0.23.1
 transformers==5.18.0
 typer==0.27.2
 xgrammar==0.2.8
+av==19.0.1

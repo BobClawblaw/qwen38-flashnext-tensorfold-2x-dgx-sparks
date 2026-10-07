@@ -1,0 +1,1 @@
+1850 words: prompt_tokens=4124 ttft=1.69s prefill=2439 tok/s

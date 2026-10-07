@@ -23,7 +23,8 @@ BENCH_DECODE_SHA256 = "6a9c64bd821fa16574dd7b471ac7bba81ea95827a48a5b7a201daeb4f
 TF_SHA = "cb2ebf0540f42604e2759b2ddef497861e928248"
 BASE_DIGEST = "sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c"
 OVERRIDES = ("PROFILE", "IMAGE", "TF_SHA", "TF_PATCH", "TP", "CONTEXT", "KV_DTYPE", "MTP_DRAFTS", "MTP_CONFIDENCE", "PARALLEL",
-             "THINKING", "MAX_TOKENS", "MEMORY_RESERVE_GIB", "EXTRA_ARGS", "EXTRA_ENV", "BENCH_ONLY", "HCA")
+             "THINKING", "MAX_TOKENS", "MEMORY_RESERVE_GIB", "EXTRA_ARGS", "EXTRA_ENV", "BENCH_ONLY", "HCA",
+             "VISION", "VISION_URLS", "VISION_MAX_IMAGES")
 
 
 def _read(rel: str) -> str:
@@ -140,6 +141,14 @@ class GuardTests(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("not the pinned", proc.stderr)
 
+    def test_vision_needs_the_concurrent_decoder(self) -> None:
+        # the patch serves images on two ranks with --parallel 2 or more; the serial engine has no image rows
+        self.refused("VISION=1 needs PARALLEL=2 or more", VISION="1")
+        self.refused("VISION=1 needs PARALLEL=2 or more", VISION="1", PARALLEL="1", PROFILE="serial")
+        self.refused("must be 0 or 1", VISION="2")
+        self.refused("must be 0 or 1", VISION_URLS="yes")
+        self.refused("not empty or a positive decimal integer", VISION_MAX_IMAGES="0")
+
     def test_patch_must_exist_under_docker_patches(self) -> None:
         self.refused("must be none or a file under docker/patches/", TF_PATCH="patches/nope.patch")
         self.refused("must be none or a file under docker/patches/", TF_PATCH="../run.sh")
@@ -148,8 +157,10 @@ class GuardTests(unittest.TestCase):
         for flag in ("--tp", "--context=8192", "--kv-dtype", "--mtp-drafts", "--parallel", "--no-thinking",
                      "--max-tokens", "--port", "--name", "--master"):
             self.refused("which run.sh passes itself", EXTRA_ARGS=f"{flag} 1")
-        self.refused("on one GPU with --parallel 2", EXTRA_ARGS="--vision")
+        self.refused("which run.sh passes itself", EXTRA_ARGS="--vision")
+        self.refused("which run.sh passes itself", EXTRA_ARGS="--vision-urls")
         self.refused("refused or unused", EXTRA_ARGS="--prefill-fp8")
+        self.refused("refused or unused", EXTRA_ARGS="--vision-offload")
         self.accepted(EXTRA_ARGS="--temperature 0.6 --alias qwen")
 
     def test_extra_args_prefixes_are_refused(self) -> None:
@@ -212,6 +223,23 @@ class ServeArgsTests(unittest.TestCase):
         self.assertNotIn("--mtp-drafts", r)
         self.assertNotIn("--parallel", self.argv("0"))
         self.assertIn("--parallel", self.argv("0", PARALLEL="4"))
+
+    def test_vision_on_both_ranks_and_its_server_options_on_rank0(self) -> None:
+        self.assertNotIn("--vision", self.argv("0"))
+        self.assertNotIn("--vision", self.argv("1"))
+        r0, r1 = self.argv("0", VISION="1", PARALLEL="4"), self.argv("1", VISION="1", PARALLEL="4")
+        self.assertIn("--vision", r0)
+        self.assertIn("--vision", r1)                       # both ranks admit the same geometry (rank 1: no tower)
+        for flag in ("--vision-urls", "--vision-max-images"):
+            self.assertNotIn(flag, r0)
+            self.assertNotIn(flag, r1)
+        r0 = self.argv("0", VISION="1", PARALLEL="4", VISION_URLS="1", VISION_MAX_IMAGES="8")
+        self.assertIn("--vision-urls", r0)
+        self.assertEqual(r0[r0.index("--vision-max-images") + 1], "8")
+        r1 = self.argv("1", VISION="1", PARALLEL="4", VISION_URLS="1", VISION_MAX_IMAGES="8")
+        self.assertNotIn("--vision-urls", r1)
+        self.assertNotIn("--vision-max-images", r1)
+        self.assertNotIn("--vision-urls", self.argv("0", VISION_URLS="1"))   # server options only with VISION=1
 
     def test_tp1_has_no_rendezvous_flags(self) -> None:
         r = self.argv("0", TP="1")

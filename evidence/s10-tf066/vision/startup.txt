@@ -1,0 +1,8 @@
+# rank 0
+[tensorfold] vision: image and video input, a 0.84 GiB tower with 4.00 GiB of workspace reserved; rank 1 receives each request's image features from this rank
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%, or up to 15 copy drafts where the reply repeats earlier text; up to 16 streams, each growing to 262144 prompt/reply tokens while memory lasts (53.4 GiB free for their caches, 2.74 GiB for one at the full window), eager; int8 KV cache (fp16 scale per 32 values); n-gram tables read alongside the weights (2.6s after them), locked in memory in 0.5s; 0 decode graphs captured; idle prompt pieces 2048 rows; prompt kernels warmed in 10.0s
+[tensorfold] serving TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP at http://0.0.0.0:8888/v1 on CUDA, rank 0 of 2 (sampling: temperature 1.0, top_k 20, top_p 0.95; drafts: on; prompts: bf16 activations; context: 262144; loaded in 125.7s)
+# rank 1
+[tensorfold] vision: image input on two ranks; this rank attaches the features rank 0 encodes
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%, or up to 15 copy drafts where the reply repeats earlier text; up to 16 streams, each growing to 262144 prompt/reply tokens while memory lasts (58.0 GiB free for their caches, 2.74 GiB for one at the full window), eager; int8 KV cache (fp16 scale per 32 values); n-gram tables read alongside the weights (3.8s after them), locked in memory in 2.6s; 0 decode graphs captured; idle prompt pieces 2048 rows; prompt kernels warmed in 15.2s
+[tensorfold] rank 1 ready in 130.8s, following rank 0
