@@ -1,0 +1,6 @@
+{"length": 250000, "depth": 0.1, "needle": 0, "code": "HWQ-6256-JT", "found": true, "answer": "HWQ-6256-JT", "prompt_tokens": 246227, "s": 125.136}
+{"length": 250000, "depth": 0.1, "needle": 1, "code": "VDJ-2556-TD", "found": true, "answer": "VDJ-2556-TD", "prompt_tokens": 246226, "s": 125.635}
+{"length": 250000, "depth": 0.5, "needle": 0, "code": "RPC-3385-ZT", "found": true, "answer": "RPC-3385-ZT", "prompt_tokens": 249640, "s": 127.404}
+{"length": 250000, "depth": 0.5, "needle": 1, "code": "CNV-8639-ZH", "found": true, "answer": "CNV-8639-ZH", "prompt_tokens": 249640, "s": 127.752}
+{"length": 250000, "depth": 0.9, "needle": 0, "code": "ZJR-7748-XS", "found": true, "answer": "ZJR-7748-XS", "prompt_tokens": 246179, "s": 125.371}
+{"length": 250000, "depth": 0.9, "needle": 1, "code": "HTQ-5531-WF", "found": true, "answer": "HTQ-5531-WF", "prompt_tokens": 246180, "s": 125.676}

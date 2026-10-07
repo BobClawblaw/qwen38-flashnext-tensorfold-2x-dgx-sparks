@@ -1,0 +1,43 @@
+{
+ "tool": "t3_needles",
+ "utc": "20261007T020823Z",
+ "argv": [
+  "/recipe/quality/t3_needles.py",
+  "--url",
+  "http://127.0.0.1:8888",
+  "--out",
+  "/out"
+ ],
+ "args": {
+  "url": "http://127.0.0.1:8888",
+  "model": null,
+  "out": "/out",
+  "lengths": "4096,16384,65536,131072",
+  "with_250k": false,
+  "depths": "0.1,0.5,0.9"
+ },
+ "git": {
+  "rev": "1aeeaef712b2cdcd9b801eaeec5e47932f27edde",
+  "branch": "main",
+  "dirty": false
+ },
+ "host": "gx10",
+ "server": "http://127.0.0.1:8888",
+ "models": {
+  "object": "list",
+  "data": [
+   {
+    "id": "TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP",
+    "object": "model",
+    "owned_by": "tensorfold"
+   }
+  ]
+ },
+ "sha256": {
+  "quality/ifeval.py": "b68f7bb53858c2bebcc0738e01b3213f675ea96f9b82dd0773f544e8cb8b9afb",
+  "quality/qlib.py": "6d646abffbe2beaa384006e842452e7302eef614d218c1d7b22cf545cc5f49fe",
+  "quality/score.py": "809a7a60d9dc8fcd5e062c074c93b775d0da7ccace42e245f9396420c1e90bac",
+  "quality/t2.py": "2d95d9f87118bcbf16726db365bfa97ca8b0860c814d4f0fd2dd26f6d6f397dd",
+  "quality/t3_needles.py": "5a9eb792276f24fba5b2fc12f51449e31d88afc91b48d55bf749322a153436d3"
+ }
+}

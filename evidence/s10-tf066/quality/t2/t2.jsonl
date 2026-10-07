@@ -248,3 +248,252 @@
 {"task": "gsm8k", "id": 1303, "correct": 1, "got": "4", "gold": "4", "finish_reason": "stop"}
 {"task": "gsm8k", "id": 1304, "correct": 1, "got": "1000", "gold": "1000", "finish_reason": "stop"}
 {"task": "gsm8k", "id": 1309, "correct": 0, "got": "2180", "gold": "2280", "finish_reason": "stop"}
+{"task": "ifeval", "id": 19, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 167, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 227, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 247, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 260, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 332, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1019, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1040, "correct": 0, "instructions": [false, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1069, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1072, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1130, "correct": 0, "instructions": [false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1148, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1162, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1203, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1219, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1251, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1265, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1325, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1348, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1361, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1367, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1375, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1392, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1393, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1418, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1466, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1476, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1481, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1531, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1537, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1546, "correct": 0, "instructions": [false, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1548, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1571, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1591, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1592, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1644, "correct": 0, "instructions": [false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1658, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1691, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1705, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1713, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1825, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1837, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1858, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1879, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1893, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1939, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 1954, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2041, "correct": 1, "instructions": [true, true], "finish_reason": "length"}
+{"task": "ifeval", "id": 2070, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2071, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2097, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2192, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2215, "correct": 0, "instructions": [false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2230, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2247, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2250, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2253, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2266, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2268, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2275, "correct": 0, "instructions": [false, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2304, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2311, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2323, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2362, "correct": 0, "instructions": [false], "finish_reason": "length"}
+{"task": "ifeval", "id": 2374, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2381, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2386, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2396, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2398, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2404, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2436, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2439, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2447, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2505, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2571, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2591, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2616, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2649, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2674, "correct": 0, "instructions": [false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2704, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2713, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2739, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2749, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2765, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2779, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2785, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2787, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2844, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2849, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2859, "correct": 0, "instructions": [false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2905, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2908, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2909, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2918, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2925, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 2943, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3041, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3057, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3069, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3084, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3109, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3198, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3243, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3245, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3280, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3315, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3326, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3351, "correct": 1, "instructions": [true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3505, "correct": 0, "instructions": [false, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3536, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3572, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3595, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3606, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3608, "correct": 0, "instructions": [false, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3631, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3633, "correct": 0, "instructions": [true, false], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3644, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3690, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3710, "correct": 1, "instructions": [true, true, true], "finish_reason": "stop"}
+{"task": "ifeval", "id": 3719, "correct": 1, "instructions": [true], "finish_reason": "stop"}
+{"task": "tools", "id": "t00.nonstream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Wellington\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t00.stream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Wellington\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t01.nonstream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Tokyo\",\"unit\":\"fahrenheit\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t01.stream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Tokyo\",\"unit\":\"fahrenheit\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t02.nonstream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Berlin\",\"unit\":\"celsius\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t02.stream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"Berlin\",\"unit\":\"celsius\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t03.nonstream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":250,\"from_currency\":\"USD\",\"to_currency\":\"EUR\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t03.stream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":250,\"from_currency\":\"USD\",\"to_currency\":\"EUR\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t04.nonstream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":99.5,\"from_currency\":\"GBP\",\"to_currency\":\"JPY\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t04.stream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":99.5,\"from_currency\":\"GBP\",\"to_currency\":\"JPY\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t05.nonstream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":1200,\"from_currency\":\"NZD\",\"to_currency\":\"AUD\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t05.stream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":1200,\"from_currency\":\"NZD\",\"to_currency\":\"AUD\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t06.nonstream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Quarterly review\",\"date\":\"2026-10-14\",\"start_time\":\"15:30\",\"duration_minutes\":45}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t06.stream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Quarterly review\",\"date\":\"2026-10-14\",\"start_time\":\"15:30\",\"duration_minutes\":45}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t08.nonstream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Dentist\",\"date\":\"2027-01-05\",\"start_time\":\"08:15\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t08.stream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Dentist\",\"date\":\"2027-01-05\",\"start_time\":\"08:15\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t09.nonstream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"origin\":\"AKL\",\"destination\":\"SYD\",\"date\":\"2026-12-20\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t09.stream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"origin\":\"AKL\",\"destination\":\"SYD\",\"date\":\"2026-12-20\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t10.nonstream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"cabin\":\"business\",\"date\":\"2027-03-01\",\"destination\":\"LHR\",\"origin\":\"JFK\",\"passengers\":2}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t10.stream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"cabin\":\"business\",\"date\":\"2027-03-01\",\"destination\":\"LHR\",\"origin\":\"JFK\",\"passengers\":2}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t11.nonstream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"origin\":\"SFO\",\"destination\":\"NRT\",\"date\":\"2026-11-11\",\"passengers\":3,\"cabin\":\"economy\"}"}], "content": "I'll search for that flight for you.", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t11.stream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"origin\":\"SFO\",\"destination\":\"NRT\",\"date\":\"2026-11-11\",\"passengers\":3,\"cabin\":\"economy\"}"}], "content": "I'll search for that flight for you.\n\n", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t12.nonstream", "correct": 1, "calls": [{"name": "send_email", "arguments": "{\"to\":\"bob@example.com\",\"subject\":\"Lunch\",\"body\":\"Are you free at noon?\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t12.stream", "correct": 1, "calls": [{"name": "send_email", "arguments": "{\"to\":\"bob@example.com\",\"subject\":\"Lunch\",\"body\":\"Are you free at noon?\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t15.nonstream", "correct": 1, "calls": [{"name": "set_thermostat", "arguments": "{\"room\":\"living room\",\"temperature_c\":21.5}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t15.stream", "correct": 1, "calls": [{"name": "set_thermostat", "arguments": "{\"room\":\"living room\",\"temperature_c\":21.5}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t19.nonstream", "correct": 1, "calls": [{"name": "lookup_stock", "arguments": "{\"exchange\":\"NASDAQ\",\"ticker\":\"AAPL\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t19.stream", "correct": 1, "calls": [{"name": "lookup_stock", "arguments": "{\"exchange\":\"NASDAQ\",\"ticker\":\"AAPL\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t20.nonstream", "correct": 1, "calls": [{"name": "lookup_stock", "arguments": "{\"ticker\":\"MSFT\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t20.stream", "correct": 1, "calls": [{"name": "lookup_stock", "arguments": "{\"ticker\":\"MSFT\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t24.nonstream", "correct": 1, "calls": [{"name": "run_sql", "arguments": "{\"query\":\"SELECT count(*) FROM orders\"}"}], "content": "I'll run that query for you.", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t24.stream", "correct": 1, "calls": [{"name": "run_sql", "arguments": "{\"query\":\"SELECT count(*) FROM orders\"}"}], "content": "I'll run that query for you.\n\n", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t27.nonstream", "correct": 1, "calls": [{"name": "translate_text", "arguments": "{\"text\":\"good morning, how are you?\",\"target_language\":\"es\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t27.stream", "correct": 1, "calls": [{"name": "translate_text", "arguments": "{\"text\":\"good morning, how are you?\",\"target_language\":\"es\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t33.nonstream", "correct": 1, "calls": [{"name": "book_restaurant", "arguments": "{\"restaurant\":\"Logan Brown\",\"date\":\"2026-10-31\",\"time\":\"19:30\",\"party_size\":4}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t33.stream", "correct": 1, "calls": [{"name": "book_restaurant", "arguments": "{\"restaurant\":\"Logan Brown\",\"date\":\"2026-10-31\",\"time\":\"19:30\",\"party_size\":4}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t35.nonstream", "correct": 1, "calls": [{"name": "book_restaurant", "arguments": "{\"restaurant\":\"Noma\",\"date\":\"2027-02-14\",\"time\":\"18:00\",\"party_size\":6}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t35.stream", "correct": 1, "calls": [{"name": "book_restaurant", "arguments": "{\"restaurant\":\"Noma\",\"date\":\"2027-02-14\",\"time\":\"18:00\",\"party_size\":6}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t36.nonstream", "correct": 1, "calls": [{"name": "compute_loan", "arguments": "{\"principal\":450000,\"annual_rate_percent\":6.25,\"years\":30}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t36.stream", "correct": 1, "calls": [{"name": "compute_loan", "arguments": "{\"principal\":450000,\"annual_rate_percent\":6.25,\"years\":30}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t37.nonstream", "correct": 1, "calls": [{"name": "compute_loan", "arguments": "{\"principal\":20000,\"annual_rate_percent\":4.9,\"years\":5}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t37.stream", "correct": 1, "calls": [{"name": "compute_loan", "arguments": "{\"principal\":20000,\"annual_rate_percent\":4.9,\"years\":5}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t39.nonstream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/data/photos/cat.png\",\"width\":800,\"height\":600}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t39.stream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/data/photos/cat.png\",\"width\":800,\"height\":600}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t40.nonstream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/tmp/banner.jpg\",\"width\":1920,\"height\":480,\"keep_aspect\":false}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t40.stream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/tmp/banner.jpg\",\"width\":1920,\"height\":480,\"keep_aspect\":false}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t41.nonstream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/home/me/logo.webp\",\"width\":256,\"height\":256,\"keep_aspect\":true}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t41.stream", "correct": 1, "calls": [{"name": "resize_image", "arguments": "{\"path\":\"/home/me/logo.webp\",\"width\":256,\"height\":256,\"keep_aspect\":true}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t42.nonstream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"São Paulo\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t42.stream", "correct": 1, "calls": [{"name": "get_weather", "arguments": "{\"city\":\"São Paulo\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t43.nonstream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":3500,\"from_currency\":\"CHF\",\"to_currency\":\"USD\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t43.stream", "correct": 1, "calls": [{"name": "convert_currency", "arguments": "{\"amount\":3500,\"from_currency\":\"CHF\",\"to_currency\":\"USD\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t44.nonstream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Team offsite\",\"date\":\"2026-10-20\",\"start_time\":\"10:00\",\"duration_minutes\":240,\"attendees\":[\"lee@example.com\"]}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t44.stream", "correct": 1, "calls": [{"name": "create_event", "arguments": "{\"title\":\"Team offsite\",\"date\":\"2026-10-20\",\"start_time\":\"10:00\",\"duration_minutes\":240,\"attendees\":[\"lee@example.com\"]}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t45.nonstream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"cabin\":\"premium\",\"date\":\"2026-12-01\",\"destination\":\"FCO\",\"origin\":\"CDG\",\"passengers\":1}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t45.stream", "correct": 1, "calls": [{"name": "search_flights", "arguments": "{\"cabin\":\"premium\",\"date\":\"2026-12-01\",\"destination\":\"FCO\",\"origin\":\"CDG\",\"passengers\":1}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t46.nonstream", "correct": 1, "calls": [{"name": "set_thermostat", "arguments": "{\"room\":\"kitchen\",\"temperature_c\":20,\"mode\":\"auto\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t46.stream", "correct": 1, "calls": [{"name": "set_thermostat", "arguments": "{\"room\":\"kitchen\",\"temperature_c\":20,\"mode\":\"auto\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t47.nonstream", "correct": 1, "calls": [{"name": "translate_text", "arguments": "{\"text\":\"où est la gare ?\",\"target_language\":\"en\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "tools", "id": "t47.stream", "correct": 1, "calls": [{"name": "translate_text", "arguments": "{\"text\":\"où est la gare ?\",\"target_language\":\"en\"}"}], "content": "", "finish_reason": "tool_calls"}
+{"task": "rep4", "id": "r00", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r01", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r02", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r03", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r04", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r05", "correct": 1, "value": 0.0, "completion_tokens": 317}
+{"task": "rep4", "id": "r06", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r07", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r08", "correct": 1, "value": 0.002611, "completion_tokens": 512}
+{"task": "rep4", "id": "r09", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r10", "correct": 1, "value": 0.002421, "completion_tokens": 512}
+{"task": "rep4", "id": "r11", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r12", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r13", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r14", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r15", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r16", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r17", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r18", "correct": 1, "value": 0.002591, "completion_tokens": 512}
+{"task": "rep4", "id": "r19", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r20", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r21", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r22", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r23", "correct": 1, "value": 0.005525, "completion_tokens": 512}
+{"task": "rep4", "id": "r24", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r25", "correct": 1, "value": 0.0, "completion_tokens": 429}
+{"task": "rep4", "id": "r26", "correct": 1, "value": 0.0, "completion_tokens": 486}
+{"task": "rep4", "id": "r27", "correct": 1, "value": 0.002778, "completion_tokens": 512}
+{"task": "rep4", "id": "r28", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r29", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r30", "correct": 1, "value": 0.002597, "completion_tokens": 512}
+{"task": "rep4", "id": "r31", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r32", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r33", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r34", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r35", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r36", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r37", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r38", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r39", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r40", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r41", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r42", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r43", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r44", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r45", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r46", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r47", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r48", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r49", "correct": 1, "value": 0.0, "completion_tokens": 333}
+{"task": "rep4", "id": "r50", "correct": 1, "value": 0.005249, "completion_tokens": 512}
+{"task": "rep4", "id": "r51", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r52", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r53", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r54", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r55", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r56", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r57", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r58", "correct": 1, "value": 0.002604, "completion_tokens": 512}
+{"task": "rep4", "id": "r59", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r60", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r61", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r62", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "rep4", "id": "r63", "correct": 1, "value": 0.0, "completion_tokens": 512}
+{"task": "effort", "id": "None", "correct": 1, "content": "42", "reasoning_chars": 0, "finish_reason": "stop"}
+{"task": "effort", "id": "none", "correct": 1, "content": "42", "reasoning_chars": 0, "finish_reason": "stop"}
+{"task": "effort", "id": "low", "correct": 1, "content": "42", "reasoning_chars": 81, "finish_reason": "stop"}
+{"task": "effort", "id": "medium", "correct": 1, "content": "42", "reasoning_chars": 84, "finish_reason": "stop"}
+{"task": "effort", "id": "xhigh", "correct": 1, "content": "42", "reasoning_chars": 138, "finish_reason": "stop"}

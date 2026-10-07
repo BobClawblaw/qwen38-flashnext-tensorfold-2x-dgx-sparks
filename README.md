@@ -139,7 +139,22 @@ Without the instruction all four misses are one prompt pair, `t27` and `t47`, st
 
 What does change the call is being told. The recipe's default `TOOL_SYSTEM` ("Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.") is added by the server only to tool requests that carry no system message, so an agent framework with its own system prompt sees no difference. Five phrasings were tried ([`system-default/`](evidence/s10-tf066/system-default/)): two scored 60/60 with every optional-value prompt (`t01`, `t16`, `t28`, `t40`, `t41`) still correct, one over-suppressed and lost `t41`. Set `TOOL_SYSTEM=` in `.env.cluster` to serve without it.
 
-The base recipe's other quality gates (GSM8K-250 95.2%, IFEval-120 86.7%, JSON schema 30/30, needles 24/24 and 6/6 at 250k) were measured on TensorFold 0.6.2 with the same checkpoint and have not been rerun on 0.6.6.
+### Quality: the other gates, rerun on 0.6.6
+
+The base recipe's harness (`quality/t2.py`, `tools/run_t3.sh`), same checkpoint, run on this fork's serve (0.6.6, the patch, copy drafts on, `PARALLEL=16`, four workers) on 2026-10-07. Receipts: [`quality/`](evidence/s10-tf066/quality/). The 0.6.2 column is the base recipe's `evidence/s8-quality/`; the vLLM column is the sibling recipe's own run (NVFP4, different weights, a report not a gate).
+
+| Gate | this fork, 0.6.6 | base recipe, 0.6.2 | vLLM NVFP4 sibling |
+|---|---:|---:|---:|
+| GSM8K-250 (thinking off, greedy) | **95.6%** (239/250) | 95.2% | 95.2% |
+| IFEval-120 (strict, prompt level) | **85.0%** (102/120) | 86.7% | 88.3% |
+| Tool calls, exact name and arguments (30 × non-streamed + streamed) | **60/60** | 52/60 | 60/60 |
+| Repeated word-4-grams over 64 × 512-token replies | **0.04%** (64/64 under the bar) | 0.03% | 0.05% |
+| `reasoning_effort` unset / none / low / medium / xhigh | **5/5** | 5/5 | 5/5 |
+| Needles, 4k / 16k / 64k / 128k × 3 depths × 2 | **24/24** | 24/24 | 24/24 on a shorter grid |
+| Needles at 246-250k prompt tokens × 3 depths × 2 | **6/6** | 6/6 | not run |
+| `response_format` json_schema, strict (serial profile) | pending: the serial-profile run is scheduled with the next image rebuild | 30/30 | 30/30 |
+
+GSM8K and IFEval moved by 1 and 2 prompts against 0.6.2 (239 against 238, 102 against 104), inside what two greedy runs of the same 4-bit weights on a different engine version do; the engine's own exactness checks compare drafted to plain decoding, not 0.6.2 to 0.6.6. The JSON-schema gate needs `PARALLEL=1` (grammars are refused under `--parallel` on two ranks) and will be run on the serial profile.
 
 ## Requirements
 
