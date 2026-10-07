@@ -8,7 +8,7 @@ This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://git
 - **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
-- **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, eight streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
+- **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, sixteen streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
 
 Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, sparse attention, hyper-connections, hashed n-gram (PLE) tables and one MTP layer. The checkpoint is MLX affine 4-bit (group 32) on every linear, including the n-gram tables and the MTP head. It is the only Flash Next format TensorFold serves on two ranks: NVFP4 and EXL3 exports run on one GPU only. Pinned snapshot: `2b170fa6309d5d1ee380b35636075fac7945f286`.
 
@@ -145,7 +145,7 @@ git clone https://github.com/BobClawblaw/qwen38-flashnext-tensorfold-2x-dgx-spar
 cd qwen38-flashnext-tensorfold
 $EDITOR .env.cluster        # HEAD_IP, WORKER_HOST=user@worker, PORT, KV_DTYPE, MTP_DRAFTS, HCA
 VALIDATE_ONLY=1 ./run.sh    # checks the settings, no Docker
-PROFILE=concurrent ./run.sh # eight streams; plain ./run.sh serves one at a time (and response_format)
+PROFILE=concurrent ./run.sh # sixteen streams; plain ./run.sh serves one at a time (and response_format)
 ```
 
 The head checks that the weights are complete on its disk, builds the image when it is missing (about 2 minutes on top of the base image, which it pulls once), copies it to the worker when the worker's image ID differs (24.5 GB over the link), starts rank 1 on the worker over SSH, then rank 0, and waits for `/health` and `/v1/models`. A first start of a new engine commit JIT-compiles the CUDA kernels (several minutes); later starts load in about 45 s.
