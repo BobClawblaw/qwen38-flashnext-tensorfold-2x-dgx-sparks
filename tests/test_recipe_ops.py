@@ -84,7 +84,12 @@ class GuardTests(unittest.TestCase):
 
     def test_topology_and_window(self) -> None:
         self.refused("one or two ranks only", TP="4")
-        self.refused("exceeds the native window", CONTEXT="262145")
+        self.refused("exceeds the trained window", CONTEXT="262145")
+        self.assertIn("profile=long", self.accepted(PROFILE="long").stdout)
+        self.assertIn("ctx=1048576", self.accepted(PROFILE="long").stdout)
+        self.assertIn("ctx=524288", self.accepted(PROFILE="long", CONTEXT="524288").stdout)
+        self.refused("exceeds the long profile's window", PROFILE="long", CONTEXT="1048577")
+        self.refused("fits the trained window", PROFILE="long", CONTEXT="262144")
         self.refused("exceeds the engine cap", MTP_DRAFTS="16")
         self.refused("must be bf16, int8 or int4", KV_DTYPE="fp8")
         self.accepted(TP="1", CONTEXT="65536", KV_DTYPE="int8")
@@ -97,7 +102,7 @@ class GuardTests(unittest.TestCase):
 
     def test_concurrent_profile_fills_unset_variables_only(self) -> None:
         out = self.accepted(PROFILE="concurrent").stdout
-        for want in ("profile=concurrent", "image=tf-qwen38-flashnext:0.6.6", "patch=patches/flashnext-tools-0.6.6.patch",
+        for want in ("profile=concurrent", "image=tf-qwen38-flashnext:0.6.6", "patch=patches/flashnext-0.6.6.patch",
                      "parallel=16", "mtp=15@"):
             self.assertIn(want, out)
         out = self.accepted(PROFILE="concurrent", PARALLEL="4", MTP_DRAFTS="6").stdout
@@ -106,7 +111,7 @@ class GuardTests(unittest.TestCase):
         self.assertIn("profile=serial", self.accepted().stdout)
         proc = _run_sh(PROFILE="fast")
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("PROFILE=fast must be serial or concurrent", proc.stderr)
+        self.assertIn("PROFILE=fast must be serial, concurrent or long", proc.stderr)
 
     def test_worker_copy_takes_the_forwarded_patch_sha(self) -> None:
         # The worker runs a /tmp copy of run.sh with no docker/patches/ next to it.
@@ -115,10 +120,10 @@ class GuardTests(unittest.TestCase):
             copy.write_text(_read("run.sh"))
             copy.chmod(0o755)
             env = {k: v for k, v in os.environ.items() if k not in OVERRIDES}
-            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", TF_PATCH="patches/flashnext-tools-0.6.6.patch", PARALLEL="8")
+            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", TF_PATCH="patches/flashnext-0.6.6.patch", PARALLEL="8")
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertNotEqual(proc.returncode, 0)
-            pin = re.search(r"\[patches/flashnext-tools-0.6.6.patch\]=([0-9a-f]{64})", _read("run.sh")).group(1)
+            pin = re.search(r"\[patches/flashnext-0.6.6.patch\]=([0-9a-f]{64})", _read("run.sh")).group(1)
             env.update(ROLE="worker", TF_PATCH_SHA=pin)
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -127,7 +132,8 @@ class GuardTests(unittest.TestCase):
     def test_shipped_patch_matches_its_pin(self) -> None:
         run = _read("run.sh")
         pins = dict(re.findall(r"^\s+\[(patches/[^\]]+)\]=([0-9a-f]{64})$", run, re.M))
-        self.assertIn("patches/flashnext-tools-0.6.6.patch", pins)
+        self.assertIn("patches/flashnext-0.6.6.patch", pins)          # the default image's patch
+        self.assertIn("patches/flashnext-tools-0.6.6.patch", pins)    # the earlier default, still buildable
         for rel, sha in pins.items():
             self.assertEqual(hashlib.sha256((ROOT / "docker" / rel).read_bytes()).hexdigest(), sha, rel)
             self.assertIn(sha, _read("recipe.yaml"), rel)
@@ -136,7 +142,7 @@ class GuardTests(unittest.TestCase):
             copy.write_text(run)
             copy.chmod(0o755)
             env = {k: v for k, v in os.environ.items() if k not in OVERRIDES}
-            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", ROLE="worker", TF_PATCH="patches/flashnext-tools-0.6.6.patch", TF_PATCH_SHA="b" * 64)
+            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", ROLE="worker", TF_PATCH="patches/flashnext-0.6.6.patch", TF_PATCH_SHA="b" * 64)
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("not the pinned", proc.stderr)
@@ -184,9 +190,64 @@ class GuardTests(unittest.TestCase):
     def test_every_refusal_precedes_validate_only_exit(self) -> None:
         run = _read("run.sh")
         exit_at = run.index('if [[ "${VALIDATE_ONLY:-0}" == "1" ]]')
-        for needle in ('die "TP=', "exceeds the native window", "exceeds the engine cap", "which run.sh passes itself",
+        for needle in ('die "TP=', "exceeds the trained window", "exceeds the long profile", "exceeds the engine cap", "which run.sh passes itself",
                        "has no pin in run.sh PATCH_PINS"):
             self.assertLess(run.index(needle), exit_at, needle)
+
+
+    def test_a_start_waits_out_the_settle_after_a_stop(self) -> None:
+        # stop.sh stamps the stop; run.sh sleeps the remainder of SETTLE_SECONDS before rank 1 starts (systemctl restart).
+        run, stop = _read("run.sh"), _read("stop.sh")
+        self.assertIn('date +%s >"$SCRIPT_DIR/.run-state/stopped_at"', stop)
+        self.assertLess(run.index("settle_after_stop\n    log \"Starting rank 1 on"), run.index('start_local 0\n  wait_ready "$watch_worker"'))
+        script = "set -euo pipefail\nlog() { echo \"$*\"; }\n" + _func_src(run, "settle_after_stop")
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / ".run-state"; state.mkdir()
+            (state / "stopped_at").write_text(str(int(__import__("time").time()) - 28))
+            t0 = __import__("time").time()
+            out = subprocess.run(["bash", "-c", script + f"STATE_DIR={shlex.quote(str(state))}\nSETTLE_SECONDS=30\nsettle_after_stop\n"],
+                                 check=True, capture_output=True, text=True).stdout
+            self.assertIn("more after the last stop", out)
+            self.assertGreaterEqual(__import__("time").time() - t0, 1.5)
+            (state / "stopped_at").write_text("0")
+            out = subprocess.run(["bash", "-c", script + f"STATE_DIR={shlex.quote(str(state))}\nsettle_after_stop\n"],
+                                 check=True, capture_output=True, text=True).stdout
+            self.assertEqual(out, "")
+
+    def test_long_profile_serves_the_yarn_folder_on_both_ranks(self) -> None:
+        run = _read("run.sh")
+        self.assertRegex(run, r"FORWARD_VARS=\([^)]*\bPROFILE\b")
+        start = _func_body(run, "start_local")
+        self.assertIn('if [[ "$PROFILE" == long ]]; then\n    ensure_long_profile\n    model_in_container="/cache/tf/long-$LONG_CONTEXT"', start)
+        self.assertIn('tensorfold serve "$model_in_container"', start)
+        body = _func_body(run, "ensure_long_profile")
+        for want in ('"rope_type": "yarn"', '"original_max_position_embeddings": native', 't["max_position_embeddings"] = window',
+                     '[[ "$b" == config.json ]] && continue', 'ln -s "$SNAPSHOT_IN_CONTAINER/$b"'):
+            self.assertIn(want, body, want)
+        self.assertIn("LONG_CONTEXT=$(( NATIVE_CONTEXT * YARN_FACTOR ))", run)
+
+    def test_long_profile_config_is_yarn_over_the_trained_window(self) -> None:
+        # The python the folder builder runs, on a config shaped like the checkpoint's (text_config + vision).
+        run = _read("run.sh")
+        body = _func_body(run, "ensure_long_profile")
+        py = body.split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = Path(tmp) / "src.json", Path(tmp) / "dst.json"
+            src.write_text(json.dumps({"architectures": ["X"], "max_position_embeddings": 262144,
+                                       "text_config": {"max_position_embeddings": 262144, "rope_parameters": {"rope_theta": 1e7, "type": "default", "partial_rotary_factor": 0.25}},
+                                       "vision_config": {"depth": 2}}))
+            proc = subprocess.run(["python3", "-", str(src), str(dst), "4", "262144", "1048576"], input=py, capture_output=True, text=True, check=False)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            out = json.loads(dst.read_text())
+            self.assertEqual(out["max_position_embeddings"], 1048576)
+            self.assertEqual(out["text_config"]["max_position_embeddings"], 1048576)
+            self.assertEqual(out["text_config"]["rope_parameters"], {"rope_theta": 1e7, "partial_rotary_factor": 0.25, "rope_type": "yarn",
+                                                                      "factor": 4.0, "original_max_position_embeddings": 262144})
+            self.assertEqual(out["vision_config"], {"depth": 2})
+            src.write_text(json.dumps({"max_position_embeddings": 131072}))
+            proc = subprocess.run(["python3", "-", str(src), str(dst), "4", "262144", "1048576"], input=py, capture_output=True, text=True, check=False)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("not 262144", proc.stderr)
 
 
 class ServeArgsTests(unittest.TestCase):

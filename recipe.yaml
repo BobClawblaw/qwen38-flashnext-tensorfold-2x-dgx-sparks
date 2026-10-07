@@ -24,6 +24,7 @@ engine:
   commit: &tf_sha cb2ebf0540f42604e2759b2ddef497861e928248
   # sha256 of every shipped patch under docker/patches/ (run.sh PATCH_PINS must match; tests/ check the files).
   patches:
+    flashnext-0.6.6.patch: 6868816a004c5acb8199648a97af90c5d189c0b316914f9c49fda4937bce91d1
     flashnext-tools-0.6.6.patch: 023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
 
 hardware:
@@ -38,7 +39,7 @@ serve:
     SERVED_NAME: *served_name
     IMAGE: *image
     TF_SHA: *tf_sha
-    TF_PATCH: patches/flashnext-tools-0.6.6.patch
+    TF_PATCH: patches/flashnext-0.6.6.patch
     CONTAINER_NAME: tf-qwen38-flashnext
     PORT: 8000
     MASTER_PORT: 29551
@@ -76,12 +77,13 @@ readme:
   # Rows of the README "Defaults" table. {NAME} is replaced by serve.env.NAME.
   defaults:
     - Engine: "TensorFold `{TF_SHA}` (v0.6.6), built into `{IMAGE}` from `docker/Dockerfile`"
-    - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, and image input on two ranks (`docker/patches/README.md`)"
+    - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, image input on two ranks, and YaRN from `config.json` for the 1M profile (`docker/patches/README.md`; the same bytes as the EXL3 sibling's patch, whose EXL3 parts are inert for this checkpoint)"
+    - Profiles: "`PROFILE=serial` (default, one stream on CUDA graphs), `concurrent` (`PARALLEL=16`), `long` (`CONTEXT=1048576` through a YaRN profile folder; short prompts belong on the other two)"
     - Images: "`VISION={VISION}`: off. `VISION=1` serves `image_url` and `video_url` parts on either profile; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features; on the serial profile an image request decodes eagerly, text keeps its graphs. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4)"
     - Tool system message: "`{TOOL_SYSTEM}` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none)"
     - Model: "`{MODEL}` at `{SNAPSHOT_SHA}`"
     - Ranks: "`--tp {TP}`: rank 1 on `{WORKER_HOST}` first, then rank 0 (HTTP) on the head; rendezvous `{HEAD_IP}:{MASTER_PORT}`"
-    - "`--context`": "{CONTEXT} (the native window, on both ranks)"
+    - "`--context`": "{CONTEXT} (the trained window, on both ranks); `PROFILE=long` 1048576"
     - "`--kv-dtype`": "`{KV_DTYPE}`"
     - MTP drafts: "`--mtp-drafts {MTP_DRAFTS} --mtp-confidence {MTP_CONFIDENCE}`"
     - "`--parallel`": "{PARALLEL} by default; `PROFILE=concurrent` (or `PARALLEL=16`) serves sixteen streams on two ranks (TensorFold 0.6.4+)"

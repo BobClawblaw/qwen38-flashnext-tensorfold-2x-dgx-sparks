@@ -6,8 +6,10 @@ FROM ${BASE}
 ARG TF_REPO=https://github.com/ashhart/TensorFold.git
 ARG TF_SHA=cb2ebf0540f42604e2759b2ddef497861e928248
 # Optional patch on top of TF_SHA, a file under docker/patches/ (`none` = upstream as tagged).
-# patches/flashnext-tools-0.6.6.patch: --tool-system on the CUDA server; a tool call keeps only declared parameters;
-# copy drafts; image and video input on two ranks (rank 0 encodes, rank 1 receives the features).
+# patches/flashnext-0.6.6.patch (the default): --tool-system on the CUDA server; a tool call keeps only declared
+# parameters; copy drafts; image and video input on two ranks (rank 0 encodes, rank 1 receives the features);
+# YaRN from config.json (the 1M profile); EXL3 packs on two ranks (inert for this checkpoint).
+# patches/flashnext-tools-0.6.6.patch: the first five of those, the default until 2026-10-07.
 ARG TF_PATCH=none
 ARG TF_PATCH_SHA=none
 # response_format / guided_* need xgrammar on BOTH ranks: rank 1 recompiles each grammar, and a missing

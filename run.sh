@@ -4,8 +4,9 @@
 # The head (spark1) starts rank 1 on WORKER_HOST over ssh, then rank 0, which serves HTTP.
 set -euo pipefail
 
-# PROFILE=concurrent: the opt-in two-rank --parallel image (README "Concurrency"). It only fills the
-# variables below when they are unset, so an explicit IMAGE / TF_PATCH / PARALLEL still wins.
+# PROFILE=serial (one stream, graphs), concurrent (sixteen streams, README "Concurrency") or long (the 1M YaRN
+# profile, README "1M context"). A profile only fills the variables below when they are unset, so an explicit
+# IMAGE / TF_PATCH / PARALLEL / CONTEXT still wins.
 # Cluster settings live in .env.cluster next to this script (KEY=VALUE lines; a variable already in the
 # environment wins, so systemd's EnvironmentFile and a one-off `PORT=8001 ./run.sh` both override it).
 # ENV_CLUSTER names another file; ENV_CLUSTER=/dev/null reads none (tests/ and CI use that).
@@ -26,7 +27,13 @@ case "$PROFILE" in
     # aggregate, evidence/s10-tf066/parallel-16). TensorFold 0.6.4+ serves --parallel at --tp 2 natively.
     PARALLEL="${PARALLEL:-16}"
     ;;
-  *) echo "PROFILE=$PROFILE must be serial or concurrent." >&2; exit 1 ;;
+  long)
+    # 1,048,576 tokens on both ranks: the checkpoint served through a profile folder whose config.json carries
+    # Qwen's static YaRN (factor 4 over the 262,144 trained window; patch part 7). Short prompts see the scaled
+    # rotary too, so this is a profile beside the plain ones, not the default (README "1M context").
+    CONTEXT="${CONTEXT:-1048576}"
+    ;;
+  *) echo "PROFILE=$PROFILE must be serial, concurrent or long." >&2; exit 1 ;;
 esac
 
 # BEGIN generated from recipe.yaml — edit recipe.yaml and run kit/render.py
@@ -34,7 +41,7 @@ MODEL="${MODEL:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
 SERVED_NAME="${SERVED_NAME:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
 IMAGE="${IMAGE:-tf-qwen38-flashnext:0.6.6}"
 TF_SHA="${TF_SHA:-cb2ebf0540f42604e2759b2ddef497861e928248}"
-TF_PATCH="${TF_PATCH:-patches/flashnext-tools-0.6.6.patch}"
+TF_PATCH="${TF_PATCH:-patches/flashnext-0.6.6.patch}"
 CONTAINER_NAME="${CONTAINER_NAME:-tf-qwen38-flashnext}"
 PORT="${PORT:-8000}"
 MASTER_PORT="${MASTER_PORT:-29551}"
@@ -74,13 +81,17 @@ EXTRA_ENV="${EXTRA_ENV:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="$SCRIPT_DIR/.run-state"
 HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
-# TensorFold's native window for this checkpoint (config.json max_position_embeddings). It refuses more.
+# The trained window (config.json max_position_embeddings); TensorFold refuses more. PROFILE=long serves
+# YARN_FACTOR times it through the profile folder's config.json (patch part 7).
 NATIVE_CONTEXT=262144
+YARN_FACTOR=4
+LONG_CONTEXT=$(( NATIVE_CONTEXT * YARN_FACTOR ))
 # The engine's draft cap (families/qwen4_exp/cuda/engine.py MAX_DEPTH).
 MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
+  [patches/flashnext-0.6.6.patch]=6868816a004c5acb8199648a97af90c5d189c0b316914f9c49fda4937bce91d1
   [patches/flashnext-tools-0.6.6.patch]=023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
 )
 
@@ -132,7 +143,12 @@ case "$KV_DTYPE" in
   bf16 | int8 | int4) ;;
   *) die "KV_DTYPE=$KV_DTYPE must be bf16, int8 or int4." ;;
 esac
-(( CONTEXT <= NATIVE_CONTEXT )) || die "CONTEXT=$CONTEXT exceeds the native window $NATIVE_CONTEXT; TensorFold refuses it and serves no YaRN."
+if [[ "$PROFILE" == long ]]; then
+  (( CONTEXT <= LONG_CONTEXT )) || die "CONTEXT=$CONTEXT exceeds the long profile's window $LONG_CONTEXT (YaRN x$YARN_FACTOR over $NATIVE_CONTEXT)."
+  (( CONTEXT > NATIVE_CONTEXT )) || die "CONTEXT=$CONTEXT fits the trained window $NATIVE_CONTEXT: serve PROFILE=serial or concurrent, which keep the plain rotary."
+else
+  (( CONTEXT <= NATIVE_CONTEXT )) || die "CONTEXT=$CONTEXT exceeds the trained window $NATIVE_CONTEXT; PROFILE=long serves up to $LONG_CONTEXT with YaRN."
+fi
 (( MTP_DRAFTS <= MAX_MTP_DRAFTS )) || die "MTP_DRAFTS=$MTP_DRAFTS exceeds the engine cap $MAX_MTP_DRAFTS."
 # --parallel N at --tp 2: TensorFold 0.6.4+ serves it (release notes, #141). Grammars (response_format,
 # guided_*) are still refused at two ranks with --parallel (families/qwen4_exp/cuda/engine.py).
@@ -304,6 +320,11 @@ stop_local() {
     log "Stopping existing container $CONTAINER_NAME"
     docker stop -t 30 "$CONTAINER_NAME" >/dev/null 2>&1 || true
     docker rm -f "$CONTAINER_NAME" >/dev/null
+    # The pages a rank frees take a while to come back; a start right behind them failed NCCL's first memory
+    # registration on the worker (ibv_reg_mr_iova2: Cannot allocate memory) where a start 40 s later came up
+    # first time. SETTLE_SECONDS=0 skips the wait.
+    log "Waiting ${SETTLE_SECONDS:-30}s for the stopped rank's memory to settle"
+    sleep "${SETTLE_SECONDS:-30}"
   fi
 }
 
@@ -373,6 +394,56 @@ serve_args() {
   printf '%s\n' "${args[@]}"
 }
 
+settle_after_stop() {
+  # stop.sh stamps the time it stopped the pair. A rank started within SETTLE_SECONDS of that refused NCCL's first
+  # memory registration on the worker (ibv_reg_mr_iova2: Cannot allocate memory; seen on `systemctl restart`, whose
+  # ExecStop runs stop.sh right before ExecStart). Wait out the remainder; SETTLE_SECONDS=0 skips it.
+  local stamp="$STATE_DIR/stopped_at" settle="${SETTLE_SECONDS:-30}" since
+  [[ -f "$stamp" ]] || return 0
+  since=$(( $(date +%s) - $(cat "$stamp" 2>/dev/null || echo 0) ))
+  (( since >= settle )) && return 0
+  log "Waiting $(( settle - since ))s more after the last stop for the ranks' memory to settle"
+  sleep $(( settle - since ))
+}
+
+ensure_long_profile() {
+  # PROFILE=long: a folder of links to the snapshot's files (container paths) with its own config.json:
+  # Qwen's YaRN block in rope_parameters and max_position_embeddings at the served window. The snapshot's bytes
+  # are untouched; TensorFold reads the folder as a checkpoint. Rebuilt whenever the pinned snapshot changes.
+  local dir="$TF_CACHE/$TF_SHA/long-$LONG_CONTEXT" f b
+  if [[ -f "$dir/.snapshot" && "$(cat "$dir/.snapshot")" == "$SNAPSHOT_SHA" ]]; then
+    log "Long profile folder $dir (YaRN x$YARN_FACTOR, $LONG_CONTEXT tokens)"
+    return
+  fi
+  rm -rf "$dir"
+  mkdir -p "$dir"
+  for f in "$SNAPSHOT"/*; do
+    b="$(basename "$f")"
+    [[ "$b" == config.json ]] && continue
+    ln -s "$SNAPSHOT_IN_CONTAINER/$b" "$dir/$b"
+  done
+  python3 - "$SNAPSHOT/config.json" "$dir/config.json" "$YARN_FACTOR" "$NATIVE_CONTEXT" "$LONG_CONTEXT" <<'PY'
+import json
+import sys
+
+src, dst, factor, native, window = sys.argv[1], sys.argv[2], float(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
+c = json.load(open(src))
+t = c.get("text_config", c)
+if int(t.get("max_position_embeddings", 0)) != native:
+    sys.exit(f"{src}: max_position_embeddings is {t.get('max_position_embeddings')}, not {native}")
+rope = dict(t.get("rope_parameters") or {})
+rope.pop("type", None)
+rope.update({"rope_type": "yarn", "factor": factor, "original_max_position_embeddings": native})
+t["rope_parameters"] = rope
+t["max_position_embeddings"] = window
+if "text_config" in c:
+    c["max_position_embeddings"] = window
+json.dump(c, open(dst, "w"), indent=1)
+PY
+  printf '%s\n' "$SNAPSHOT_SHA" >"$dir/.snapshot"
+  log "Built long profile folder $dir (YaRN x$YARN_FACTOR over $NATIVE_CONTEXT, window $LONG_CONTEXT)"
+}
+
 start_local() {
   local rank="$1"
   mkdir -p "$HF_CACHE" "$TF_CACHE/$TF_SHA"
@@ -382,6 +453,11 @@ start_local() {
   maybe_drop_caches
   ensure_image
   ensure_weights
+  local model_in_container="$SNAPSHOT_IN_CONTAINER"
+  if [[ "$PROFILE" == long ]]; then
+    ensure_long_profile
+    model_in_container="/cache/tf/long-$LONG_CONTEXT"
+  fi
 
   # The snapshot is complete (ensure_weights), so the container never needs the Hub or a token.
   local env_args=(
@@ -403,7 +479,7 @@ start_local() {
   # --init: rank 1 installs no SIGTERM handler and would ignore it as PID 1, so `docker stop` would wait
   # out its timeout. --ulimit memlock + IPC_LOCK: the 29.8 GiB n-gram tables are mlocked; without them
   # the lock fails silently and lookups can page. --ulimit core=1: no multi-GiB core dumps in host RAM.
-  log "Starting $CONTAINER_NAME rank=$rank tp=$TP ctx=$CONTEXT kv=$KV_DTYPE mtp=$MTP_DRAFTS@$MTP_CONFIDENCE parallel=$PARALLEL vision=$VISION hca=$HCA"
+  log "Starting $CONTAINER_NAME rank=$rank profile=$PROFILE tp=$TP ctx=$CONTEXT kv=$KV_DTYPE mtp=$MTP_DRAFTS@$MTP_CONFIDENCE parallel=$PARALLEL vision=$VISION hca=$HCA"
   # shellcheck disable=SC2086 # EXTRA_ARGS is word-split on purpose
   docker run -d \
     --name "$CONTAINER_NAME" \
@@ -421,13 +497,13 @@ start_local() {
     -v "${TF_CACHE}/${TF_SHA}:/cache/tf" \
     "${env_args[@]}" \
     "$IMAGE" \
-    tensorfold serve "$SNAPSHOT_IN_CONTAINER" "${args[@]}" $EXTRA_ARGS >/dev/null
+    tensorfold serve "$model_in_container" "${args[@]}" $EXTRA_ARGS >/dev/null
   start_memguard
 }
 
 # Variables the worker rank needs, forwarded shell-quoted over ssh.
 FORWARD_VARS=(
-  MODEL SERVED_NAME IMAGE TF_SHA TF_PATCH CONTAINER_NAME PORT MASTER_PORT HEAD_IP IFACE HCA TP CONTEXT KV_DTYPE
+  PROFILE MODEL SERVED_NAME IMAGE TF_SHA TF_PATCH CONTAINER_NAME PORT MASTER_PORT HEAD_IP IFACE HCA TP CONTEXT KV_DTYPE
   TF_PATCH_SHA MTP_DRAFTS MTP_CONFIDENCE PARALLEL THINKING MAX_TOKENS MEMORY_RESERVE_GIB HF_CACHE SNAPSHOT_SHA
   SKIP_DOWNLOAD HF_HUB_DISABLE_XET TF_CACHE OOM_SCORE_ADJ MEMGUARD MEMGUARD_MIN_AVAIL_MB
   MEMGUARD_MIN_SWAP_FREE_MB BENCH_ONLY EXTRA_ARGS EXTRA_ENV TOOL_SYSTEM VISION VISION_URLS VISION_MAX_IMAGES
@@ -521,6 +597,7 @@ if [[ "$ORCHESTRATE" == "auto" && "$ROLE" == "head" ]]; then
     printf '%s\n' "$WORKER_HOST" >"$STATE_DIR/worker_host"
     ensure_weights                 # the head's own snapshot, before rank 1 starts and waits on it
     sync_worker_image
+    settle_after_stop
     log "Starting rank 1 on $WORKER_HOST first"
     scp -q "$0" "${WORKER_HOST}:/tmp/${CONTAINER_NAME}-run.sh"
     ssh "$WORKER_HOST" "$(worker_env) bash /tmp/${CONTAINER_NAME}-run.sh"
@@ -537,6 +614,7 @@ elif [[ "$ROLE" == "worker" ]]; then
   start_local 1
   log "Rank 1 is up and waits for rank 0 at $HEAD_IP:$MASTER_PORT."
 else
+  settle_after_stop
   start_local 0
   wait_ready 0
   log "Stop with: ./stop.sh"

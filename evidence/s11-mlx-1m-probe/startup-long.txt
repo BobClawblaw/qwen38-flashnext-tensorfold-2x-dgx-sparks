@@ -1,0 +1,5 @@
+[tensorfold] CUDA rank 0 startup estimate 67.38 GiB within 101.20 GiB; native 1048576, allocated prompt/reply window 1048576, cache slots 1048592
+[tensorfold] vision: image and video input, a 0.84 GiB tower with 4.00 GiB of workspace reserved; rank 1 receives each request's image features from this rank
+[tensorfold] rotary: YaRN x4 over the 262144-token trained window (static: short prompts see the scaled rotary too; serve the plain checkpoint for them)
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%, or up to 15 copy drafts where the reply repeats earlier text; 1048576-token prompt/reply window; 1048592-token cache; int8 KV cache (fp16 scale per 32 values); n-gram tables read alongside the weights (2.4s after them), locked in memory in 0.5s; 48 decode graphs captured; idle prompt pieces 2048 rows; prompt kernels warmed in 1.8s
+[tensorfold] serving TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP at http://0.0.0.0:8888/v1 on CUDA, rank 0 of 2 (sampling: temperature 1.0, top_k 20, top_p 0.95; drafts: on; prompts: bf16 activations; context: 1048576; loaded in 127.2s)

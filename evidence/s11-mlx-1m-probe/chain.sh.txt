@@ -1,0 +1,23 @@
+#!/bin/bash
+set -u
+S=$(ls -d $SCRATCH); O=$S/mlxlong; R=/home/USER/qwen38-flashnext-tensorfold
+U=http://127.0.0.1:8888/v1/chat/completions; M=TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP
+log(){ echo "== $* $(date -Is) =="; }
+log "stop production"; sudo systemctl stop qwen38-tensorfold
+log "start long profile via run.sh"; cd $R && PROFILE=long VISION=1 ./run.sh > $O/run-long.log 2>&1 || { echo "RUN FAILED"; tail -40 $O/run-long.log; exit 1; }
+tail -4 $O/run-long.log; curl -s http://127.0.0.1:8888/health; echo
+docker logs tf-qwen38-flashnext 2>&1 | grep -iE "rotary|context|free for|estimate|vision|window|yarn" | head -20 > $O/startup-long.txt
+ssh user@10.0.0.30 docker logs tf-qwen38-flashnext 2>&1 | grep -iE "rotary|context|free for|estimate|vision|window|yarn" | head -20 > $O/startup-long-rank1.txt
+log "cmp drafted vs undrafted"; python3 -I $R/tools/cmp_drafts.py $U --tokens 300 --dump $O/texts-long.json 2>&1 | tee $O/cmp-long.txt
+log "frozen ruler c=1"; python3 $R/bench_decode.py --url $U --model $M --concurrency 1 > $O/bench-long-c1.out 2>&1; grep -E "median_decode|\"phase\"" $O/bench-long-c1.out
+log "vision probe"; python3 $R/tools/visioncheck.py --url $U --model $M > $O/visioncheck-long.txt 2>&1; tail -3 $O/visioncheck-long.txt
+for n in 8000 300000; do log "needle $n"; FOLLOWUP=1 python3 -I $R/tools/needle.py $U $n 0.5; done 2>&1 | tee $O/needle-long.txt
+log "needle 1000000"; python3 -I $R/tools/needle.py $U 1000000 0.5 2>&1 | tee -a $O/needle-long.txt
+docker logs tf-qwen38-flashnext 2>&1 | grep "done req" > $O/done-lines-long.txt
+log "stop long"; cd $R && ./stop.sh > $O/stop-long.log 2>&1; tail -2 $O/stop-long.log
+log "start production (unit)"; sudo systemctl start qwen38-tensorfold; systemctl is-active qwen38-tensorfold; curl -s http://127.0.0.1:8888/health; echo
+docker logs tf-qwen38-flashnext 2>&1 | grep -iE "rotary|context|free for|estimate|window" | head -10 > $O/startup-prod.txt
+log "cmp production on the new image"; python3 -I $R/tools/cmp_drafts.py $U --tokens 300 --dump $O/texts-prod-new-image.json 2>&1 | tee $O/cmp-prod-new-image.txt
+log "vision probe production"; python3 $R/tools/visioncheck.py --url $U --model $M > $O/visioncheck-prod-new-image.txt 2>&1; tail -3 $O/visioncheck-prod-new-image.txt
+log "frozen ruler c=1 production"; python3 $R/bench_decode.py --url $U --model $M --concurrency 1 > $O/bench-prod-new-image-c1.out 2>&1; grep -E "median_decode|\"phase\"" $O/bench-prod-new-image-c1.out
+log "DONE"

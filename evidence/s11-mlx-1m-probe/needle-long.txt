@@ -1,0 +1,7 @@
+== needle 8000 2026-10-07T17:57:35+00:00 ==
+prompt_tokens=7556 depth=0.5 time=3s (2433 tok/s prefill) found=True reply='7-4-1-9-2'
+followup: cached_tokens=0 completion_tokens=200 time=5.3s (37.5 tok/s incl. ttft)
+== needle 300000 2026-10-07T17:57:43+00:00 ==
+prompt_tokens=286217 depth=0.5 time=155s (1844 tok/s prefill) found=True reply='7-4-1-9-2'
+followup: cached_tokens=0 completion_tokens=200 time=160.3s (1.2 tok/s incl. ttft)
+prompt_tokens=958947 depth=0.5 time=913s (1051 tok/s prefill) found=True reply='7-4-1-9-2'

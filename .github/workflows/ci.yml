@@ -28,10 +28,18 @@ jobs:
         run: VALIDATE_ONLY=1 PROFILE=concurrent ./run.sh
       - name: run.sh dry-run, --parallel at TP=2 (TensorFold 0.6.4+ serves it)
         run: VALIDATE_ONLY=1 PARALLEL=4 ./run.sh
-      - name: run.sh refuses a window above the native 262144
+      - name: run.sh refuses a window above the trained 262144 on the plain profiles
         run: |
           if VALIDATE_ONLY=1 CONTEXT=524288 ./run.sh; then
             echo "run.sh accepted CONTEXT=524288" >&2
+            exit 1
+          fi
+      - name: run.sh serves 1048576 on the long profile and refuses more
+        run: |
+          VALIDATE_ONLY=1 PROFILE=long ./run.sh | grep -q "ctx=1048576"
+          VALIDATE_ONLY=1 PROFILE=long VISION=1 ./run.sh | grep -q "profile=long"
+          if VALIDATE_ONLY=1 PROFILE=long CONTEXT=1048577 ./run.sh; then
+            echo "run.sh accepted CONTEXT=1048577" >&2
             exit 1
           fi
       - name: run.sh refuses EXTRA_ARGS that re-set an owned flag

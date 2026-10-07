@@ -1,0 +1,6 @@
+[0] 127.0.0.1:8888: 07356e4ce548 193tok 74.8tok/s | 127.0.0.1:8888 nodraft: 07356e4ce548 193tok 48.6tok/s
+[1] 127.0.0.1:8888: 106b1e89689f 185tok 123.2tok/s | 127.0.0.1:8888 nodraft: 106b1e89689f 185tok 49.2tok/s
+[2] 127.0.0.1:8888: 589f37dff22c 168tok 69.9tok/s | 127.0.0.1:8888 nodraft: 589f37dff22c 168tok 49.7tok/s
+[3] 127.0.0.1:8888: 9a37a0431d60 21tok 52.2tok/s | 127.0.0.1:8888 nodraft: 9a37a0431d60 21tok 40.3tok/s
+[4] 127.0.0.1:8888: f5d3784174fa 300tok 91.6tok/s | 127.0.0.1:8888 nodraft: f5d3784174fa 300tok 48.7tok/s
+[5] 127.0.0.1:8888: aecdbc7d0a61 223tok 117.2tok/s | 127.0.0.1:8888 nodraft: aecdbc7d0a61 223tok 48.3tok/s

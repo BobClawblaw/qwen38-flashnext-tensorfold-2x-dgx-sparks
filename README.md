@@ -1,19 +1,20 @@
 # Qwen3.8-Flash-Next · TensorFold 0.6.6 · 2× DGX Spark
 
-Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) across two NVIDIA DGX Spark (GB10, 128 GB) nodes at tensor-parallel 2 with the [TensorFold](https://github.com/ashhart/TensorFold) engine: sixteen concurrent streams, the full 262,144-token window on both ranks, MTP speculative decoding (15 drafts at confidence 0.70), int8 KV cache, an OpenAI-compatible API, and a systemd unit that brings the pair up at boot.
+Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) across two NVIDIA DGX Spark (GB10, 128 GB) nodes at tensor-parallel 2 with the [TensorFold](https://github.com/ashhart/TensorFold) engine: sixteen concurrent streams, the full 262,144-token window on both ranks, a 1M-token profile (static YaRN x4), MTP speculative decoding (15 drafts at confidence 0.70), int8 KV cache, image and video input, an OpenAI-compatible API, and a systemd unit that brings the pair up at boot.
 
 This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
 - **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PROFILE=concurrent` (`PARALLEL=16`) for sixteen streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
 - **Image and video input on two ranks** (`VISION=1`, patch parts 4 and 5, either profile): rank 0 runs the checkpoint's own vision tower once per request and sends the image features to rank 1; both ranks attach the same rows. On the serial profile an image request decodes eagerly and text keeps its CUDA graphs. TensorFold 0.6.6 refuses `--vision` at `--tp 2` and without `--parallel`; upstream merged this work into main on 2026-10-07 (pull request #473), and the patch carries upstream's follow-up fixes. Measured below: a drawn test image, a 4k-token photo and a short video answered correctly; drafted, concurrent and text-beside-images replies all byte-identical to their references; the text ruler unmoved.
-- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Four things; the last two are below. Two about tools. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). Copy drafts: a reply whose last 8 tokens repeat earlier text drafts that text's continuation whole, up to the depth, instead of an MTP chain, so quoting, editing and refactoring decode faster with byte-identical output (`TENSORFOLD_COPY_DRAFTS=0` turns it off). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Copy drafts and the two vision parts are in TensorFold main since 2026-10-07 (pull requests #468 and #473); the patch's copies are byte-identical to main at `ed78d6f`, upstream's follow-ups included. The Python engine is frozen at 0.6.6, so no tagged release carries them and the patch stays while the image builds from v0.6.6. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
+- **1M context** (`PROFILE=long`, patch part 7): 1,048,576 tokens on both ranks with Qwen's static YaRN (factor 4 over the trained 262,144), read from a profile folder's `config.json` that `run.sh` builds from the pinned snapshot; the snapshot's bytes are untouched. Measured below: needles found at 286k and 959k tokens at two depths, a 959k prompt in 15 minutes, 24 tok/s decoding behind it, and the vision probe answering as on the plain profile. A static factor shifts short prompts too, so it is a profile beside the plain ones.
+- **One patch, baked into the image:** [`docker/patches/flashnext-0.6.6.patch`](docker/patches/flashnext-0.6.6.patch), the same bytes as the EXL3 sibling recipe's patch (parts 6 and 8, EXL3 packs on two ranks and a 16-stream EXL3 decode window, do nothing for this checkpoint; part 7 is the YaRN above). Until 2026-10-07 the image carried `flashnext-tools-0.6.6.patch`, its first five parts, kept and pinned for a rebuild. The five: two about tools. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). Copy drafts: a reply whose last 8 tokens repeat earlier text drafts that text's continuation whole, up to the depth, instead of an MTP chain, so quoting, editing and refactoring decode faster with byte-identical output (`TENSORFOLD_COPY_DRAFTS=0` turns it off). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Copy drafts and the two vision parts are in TensorFold main since 2026-10-07 (pull requests #468 and #473); the patch's copies are byte-identical to main at `ed78d6f`, upstream's follow-ups included. The Python engine is frozen at 0.6.6, so no tagged release carries them and the patch stays while the image builds from v0.6.6. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
 - **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, sixteen streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
 
 What changed when is in [`CHANGELOG.md`](CHANGELOG.md).
 
-Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, sparse attention, hyper-connections, hashed n-gram (PLE) tables and one MTP layer. The checkpoint is MLX affine 4-bit (group 32) on every linear, including the n-gram tables and the MTP head. It is the only Flash Next format TensorFold serves on two ranks: NVFP4 and EXL3 exports run on one GPU only. Pinned snapshot: `2b170fa6309d5d1ee380b35636075fac7945f286`.
+Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, sparse attention, hyper-connections, hashed n-gram (PLE) tables and one MTP layer. The checkpoint is MLX affine 4-bit (group 32) on every linear, including the n-gram tables and the MTP head. TensorFold 0.6.6 serves it on two ranks natively (NVFP4 stays on one GPU; the EXL3 packs run on two ranks with the sibling recipe's patch, which this image carries too). Pinned snapshot: `2b170fa6309d5d1ee380b35636075fac7945f286`.
 
 TensorFold runs inside `nvcr.io/nvidia/pytorch:26.07-py3` (digest-pinned), built locally from [`docker/Dockerfile`](docker/Dockerfile). Its kernels JIT-compile for sm_121 on the first start of each engine commit and are cached on the host after that. Rank 1 runs on the worker, rank 0 serves HTTP on the head; partials are all-gathered over NCCL on the QSFP RoCE link.
 
@@ -132,12 +133,29 @@ The second rank does not speed prefill up: a single Spark running the Mia'a AI L
 | warm: the same prompts cached, code | 1.6 s each | 52 tok/s (99 rounds for 512 tokens) | **209 tok/s** |
 | reference: four streams at 8k, prose | | | 154 tok/s |
 
-Memory is not the limit: with four full windows live the head still had 21 GiB available. Time is. A round with four streams attending over 250k tokens each costs about 100-130 ms against 61 ms at short context, and tokens per round stay what the text allows (2 for prose, 5 for code). Eight short-prompt streams reach 320-520 tok/s and sixteen 650-715; four streams at 1M of context reach 116-209.
+Memory is not the limit: with four full windows live the head still had 21 GiB available. Time is. A round with four streams attending over 250k tokens each costs about 100-130 ms against 61 ms at short context, and tokens per round stay what the text allows (2 for prose, 5 for code). Eight short-prompt streams reach 320-520 tok/s and sixteen 650-715; four streams at 1M of context reach 116-209. One prompt of 1M tokens needs the long profile below.
 
 Two behaviours to plan around:
 
 - **A long prompt filling starves live replies.** On CUDA `--decode-share` defaults to 0: a prompt pass takes the whole shared round, and a stream that was answering drops to about 1 tok/s until the fill ends. A nonzero share (`EXTRA_ARGS="--decode-share 0.5"`, forwarded to both ranks) sizes the passes so decoding keeps that fraction, at the cost of slower prefill. Not measured here yet.
 - **Eight resumable prompts.** The concurrent decoder keeps 8 prompt states (`KEEP = 8`). Four 8k requests between two 250k passes evicted the 250k states, and the next pass re-prefilled all 1M tokens (about 9 minutes). A 1M-token working set means at most eight conversations resume for free.
+
+### 1M context: one prompt of 1,048,576 tokens (`PROFILE=long`)
+
+`PROFILE=long` serves 1,048,576 tokens on both ranks with Qwen's static YaRN (factor 4 over the 262,144 trained window), read from a profile folder's `config.json` (`run.sh ensure_long_profile`; [`docs/one-million-context.md`](docs/one-million-context.md)). Serial engine, int8 KV, `VISION=1`: TensorFold's startup estimate is 67.4 GiB on rank 0 (the tower and its workspace included) and 62.7 GiB on rank 1, the full window admitted on both, loaded in 127 s. Needles (a secret code inside a generated document, the question at the end, `tools/needle.py`); receipts in [`evidence/s11-mlx-1m-probe/`](evidence/s11-mlx-1m-probe/):
+
+| Prompt tokens | Depth | Found | Time to the reply | Prefill | 200-token follow-up on the same document |
+|---:|---:|---|---:|---:|---:|
+| 7,556 | 50% | yes | 3 s | 2,433 tok/s | 85.4 tok/s decode after its own 3 s prompt pass |
+| 286,217 | 50% | yes | 155 s | 1,844 tok/s | 36.8 tok/s decode after its own 154 s prompt pass (the prefix was not reused) |
+| 958,947 | 50% | yes | 913 s | 1,051 tok/s | 7.5 s beyond its own prompt pass (first probe) |
+| 959,566 | 10% | yes | 912 s | 1,052 tok/s | (first probe) |
+
+Two boots agree: the recipe's own `PROFILE=long VISION=1 ./run.sh` (`needle-long.txt`, `done-lines-long.txt`, the engine's per-request lines give the decode rates) and a first probe on the same image through a development launcher (`mlx1m.log`, which adds the 10% depth needle and the 1M follow-up); every prefill rate is within 0.5% between them. Also on those boots: the frozen ruler at one user gave prose 76.0-77.8 / structured 253.2-261.0 tok/s (the serial profile's 71-73 / 242-250 on the plain rotary, so short replies lose nothing), drafted replies equal `"draft": false` ones on 6 of 6 prompts, and the drawn-shapes vision probe answers as on the plain profile (reply hash `a7588cf7f668`). The EXL3 sibling's 1M profile needs 1,468 s for the same 959k prompt (653 tok/s), so this checkpoint is the faster 1M machine on the pair by about 1.6x in the prompt pass.
+
+The plain profile is untouched by the new image: right after the long run, `PROFILE=concurrent VISION=1` on the same image gave the same six reply hashes as before the swap, the same vision reply, and a frozen ruler of 66.0 / 237.4 against 67.1 / 241.5 (`cmp-prod-new-image.txt`, `ref-cmp-old-image.txt`, `bench-prod-new-image-c1.out`).
+
+What to expect: a 1M prompt is a 15-minute wait during which both GPUs serve nothing else; a second question on the same document pays the prompt pass again (the prefix cache did not hit at these lengths). Short prompts on the long profile are coherent and drafted equals undrafted, but they are not the plain profile's replies (a static factor shifts every position; Qwen's card says so). Serve `serial` or `concurrent` for ordinary work and `long` when a prompt exceeds 262k.
 
 ### Images and video on two ranks
 
@@ -210,6 +228,7 @@ Every public recipe for this checkpoint that reports a number, as of 2026-10-07;
 |---|---:|---|---:|---|
 | this recipe, `PROFILE=serial` | 2 | TensorFold 0.6.6 | **71-73** (structured 242-250) | one stream |
 | this recipe, `PROFILE=concurrent` with vision | 2 | TensorFold 0.6.6 | **67** (structured 242) | 4 / 8 / 16 users: 280-330 / 460-520 / 650-715 |
+| this recipe, `PROFILE=long` with vision (1,048,576-token window) | 2 | TensorFold 0.6.6 | 78 (structured 261) | one stream; a 959k prompt in 15 min |
 | [sfxnz base recipe](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) | 2 | TensorFold 0.6.2 | 69.6 (structured 249.5) | 4 / 8 users: 162-323 / 228-520 (chat / code) |
 | [EXL3 recipe, same pair](https://github.com/BobClawblaw/qwen38-flashnext-exl3-2x-dgx-sparks) (turboderp 4.05 bpw, two ranks, 1M profile) | 2 | TensorFold 0.6.6 | 57 (structured 231-239) | 4 / 8 / 16 users: 161 / 264 / 367; structured at 16: 801 |
 | [Mia's AI Lab, TensorFold](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Single-DGX-Spark-TensorFold) | 1 | TensorFold 0.6.1 | 63.6 (code 96.9) | 4 users: 114-166 |
@@ -244,6 +263,7 @@ cd qwen38-flashnext-tensorfold
 $EDITOR .env.cluster        # HEAD_IP, WORKER_HOST=user@worker, PORT, KV_DTYPE, MTP_DRAFTS, HCA
 VALIDATE_ONLY=1 ./run.sh    # checks the settings, no Docker
 PROFILE=concurrent ./run.sh # sixteen streams; plain ./run.sh serves one at a time (and response_format)
+PROFILE=long ./run.sh       # 1,048,576 tokens, YaRN x4; for prompts beyond 262k
 ```
 
 The head checks that the weights are complete on its disk, builds the image when it is missing (about 2 minutes on top of the base image, which it pulls once), copies it to the worker when the worker's image ID differs (24.5 GB over the link), starts rank 1 on the worker over SSH, then rank 0, and waits for `/health` and `/v1/models`. A first start of a new engine commit JIT-compiles the CUDA kernels (several minutes); later starts load in about 45 s.
@@ -288,12 +308,13 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 | Setting | Value |
 |---|---|
 | Engine | TensorFold `cb2ebf0540f42604e2759b2ddef497861e928248` (v0.6.6), built into `tf-qwen38-flashnext:0.6.6` from `docker/Dockerfile` |
-| Patch | `patches/flashnext-tools-0.6.6.patch`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, and image input on two ranks (`docker/patches/README.md`) |
+| Patch | `patches/flashnext-0.6.6.patch`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, image input on two ranks, and YaRN from `config.json` for the 1M profile (`docker/patches/README.md`; the same bytes as the EXL3 sibling's patch, whose EXL3 parts are inert for this checkpoint) |
+| Profiles | `PROFILE=serial` (default, one stream on CUDA graphs), `concurrent` (`PARALLEL=16`), `long` (`CONTEXT=1048576` through a YaRN profile folder; short prompts belong on the other two) |
 | Images | `VISION=0`: off. `VISION=1` serves `image_url` and `video_url` parts on either profile; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features; on the serial profile an image request decodes eagerly, text keeps its graphs. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4) |
 | Tool system message | `Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none) |
 | Model | `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` at `2b170fa6309d5d1ee380b35636075fac7945f286` |
 | Ranks | `--tp 2`: rank 1 on `spark2` first, then rank 0 (HTTP) on the head; rendezvous `10.100.8.1:29551` |
-| `--context` | 262144 (the native window, on both ranks) |
+| `--context` | 262144 (the trained window, on both ranks); `PROFILE=long` 1048576 |
 | `--kv-dtype` | `bf16` |
 | MTP drafts | `--mtp-drafts 15 --mtp-confidence 0.70` |
 | `--parallel` | 1 by default; `PROFILE=concurrent` (or `PARALLEL=16`) serves sixteen streams on two ranks (TensorFold 0.6.4+) |
@@ -307,7 +328,7 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 `run.sh` refuses, before `VALIDATE_ONLY` exits:
 
 - non-decimal or zero-padded integers, `MTP_CONFIDENCE` outside [0, 1], a `TF_SHA` / `SNAPSHOT_SHA` that is not 40 hex
-- `TP` other than 1 or 2, `CONTEXT` above the native 262144 (TensorFold serves no YaRN), `MTP_DRAFTS` above the engine cap 15, `KV_DTYPE` other than bf16 / int8 / int4
+- `TP` other than 1 or 2, `CONTEXT` above the trained 262144 on the plain profiles or above 1048576 on `long` (and at or below 262144 on `long`: that window belongs on the plain rotary), `MTP_DRAFTS` above the engine cap 15, `KV_DTYPE` other than bf16 / int8 / int4
 - a `TF_PATCH` that is not `none` or a pinned file under `docker/patches/`, or whose sha256 differs from its pin
 - `EXTRA_ARGS` that re-sets a flag `run.sh` builds (`--tp`, `--rank`, `--master*`, `--host`, `--port`, `--name`, `--context`, `--kv-dtype`, `--mtp-*`, `--parallel`, `--thinking`, `--max-tokens`, `--no-drafts`), `--vision*` (one GPU only), and `--prefill-fp8` / `--drafter` / `--ple-on-ssd` / `--ssd-experts` (refused or unused for this checkpoint)
 - an `EXTRA_ENV` word that is not `KEY=VALUE`
@@ -352,7 +373,7 @@ TensorFold prints one `done req-…` line per request: tokens, tok/s, TTFT, pref
 
 ## Evidence
 
-Every number in this README has a file under [`evidence/`](evidence/). This fork's session is [`s10-tf066`](evidence/s10-tf066/); `s1` to `s9` are the base recipe's (TensorFold 0.6.2) and are kept as its receipts. `recipe.yaml` names the file per measured row; `python3 kit/render.py --check` lists the rows that still have none.
+Every number in this README has a file under [`evidence/`](evidence/). This fork's sessions are [`s10-tf066`](evidence/s10-tf066/) and [`s11-mlx-1m-probe`](evidence/s11-mlx-1m-probe/) (the 1M profile); `s1` to `s9` are the base recipe's (TensorFold 0.6.2) and are kept as its receipts. `recipe.yaml` names the file per measured row; `python3 kit/render.py --check` lists the rows that still have none.
 
 ## Gotchas
 
@@ -361,6 +382,7 @@ Every number in this README has a file under [`evidence/`](evidence/). This fork
 - `docker stop` on a rank without `--init` would wait out its timeout: TensorFold's rank 1 installs no SIGTERM handler. `run.sh` passes `--init`.
 - A buildx builder container (`buildx_buildkit_*`) is exempt from the foreign-GPU-container check; anything else holding the GPU makes `run.sh` refuse to start.
 - The `TensorFold/` repo id prints a cosmetic "untested" note at start (TensorFold lists the checkpoint under its old `Vontra/` name).
+- The long profile shifts short prompts (static YaRN). Keep it for prompts beyond 262k; `./stop.sh && PROFILE=long ./run.sh` to switch, and back.
 
 ## Credits
 
