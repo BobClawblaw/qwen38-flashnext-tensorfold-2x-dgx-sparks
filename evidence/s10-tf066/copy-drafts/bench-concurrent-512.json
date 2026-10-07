@@ -1,0 +1,257 @@
+{
+ "label": "",
+ "tokens": 512,
+ "mixed": false,
+ "cells": [
+  {
+   "prompt": "code",
+   "temperature": 0.0,
+   "streams": 1,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 106.3,
+   "per_stream_tps": 106.3,
+   "ttft_s_max": 0.05,
+   "alone": {
+    "equal": 2,
+    "unequal": 0,
+    "failed": 0
+   },
+   "serial": {
+    "equal": 1,
+    "unequal": 0,
+    "failed": 0
+   },
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 106.81769905004185,
+     "per_stream_tps": [
+      106.8
+     ],
+     "ttft_s": [
+      0.05
+     ],
+     "errors": [],
+     "equal_alone": [
+      true
+     ]
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 105.83639429533221,
+     "per_stream_tps": [
+      105.8
+     ],
+     "ttft_s": [
+      0.05
+     ],
+     "errors": [],
+     "equal_alone": [
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "prompt": "code",
+   "temperature": 0.0,
+   "streams": 4,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 322.5,
+   "per_stream_tps": 80.7,
+   "ttft_s_max": 0.08,
+   "steady_tps": 321.9,
+   "alone": {
+    "equal": 8,
+    "unequal": 0,
+    "failed": 0
+   },
+   "serial": {
+    "equal": 1,
+    "unequal": 0,
+    "failed": 0
+   },
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 319.2090338964278,
+     "steady_tps": 318.6285627192917,
+     "per_stream_tps": [
+      79.9,
+      79.8,
+      79.8,
+      79.9
+     ],
+     "ttft_s": [
+      0.07,
+      0.07,
+      0.07,
+      0.07
+     ],
+     "errors": [],
+     "equal_alone": [
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 325.85350316273735,
+     "steady_tps": 325.08316360395594,
+     "per_stream_tps": [
+      81.5,
+      81.5,
+      81.5,
+      81.5
+     ],
+     "ttft_s": [
+      0.08,
+      0.08,
+      0.08,
+      0.08
+     ],
+     "errors": [],
+     "equal_alone": [
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "prompt": "chat",
+   "temperature": 0.0,
+   "streams": 1,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 87.3,
+   "per_stream_tps": 87.3,
+   "ttft_s_max": 0.06,
+   "alone": {
+    "equal": 2,
+    "unequal": 0,
+    "failed": 0
+   },
+   "serial": {
+    "equal": 1,
+    "unequal": 0,
+    "failed": 0
+   },
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 87.23707234860436,
+     "per_stream_tps": [
+      87.2
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": [],
+     "equal_alone": [
+      true
+     ]
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 87.35673223670145,
+     "per_stream_tps": [
+      87.4
+     ],
+     "ttft_s": [
+      0.06
+     ],
+     "errors": [],
+     "equal_alone": [
+      true
+     ]
+    }
+   ]
+  },
+  {
+   "prompt": "chat",
+   "temperature": 0.0,
+   "streams": 4,
+   "failed": 0,
+   "unmeasured": 0,
+   "aggregate_tps": 274.1,
+   "per_stream_tps": 68.6,
+   "ttft_s_max": 0.09,
+   "steady_tps": 274.3,
+   "alone": {
+    "equal": 8,
+    "unequal": 0,
+    "failed": 0
+   },
+   "serial": {
+    "equal": 1,
+    "unequal": 0,
+    "failed": 0
+   },
+   "reps": [
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 272.7761942715154,
+     "steady_tps": 273.0586583046398,
+     "per_stream_tps": [
+      68.3,
+      68.3,
+      68.3,
+      68.3
+     ],
+     "ttft_s": [
+      0.08,
+      0.08,
+      0.08,
+      0.09
+     ],
+     "errors": [],
+     "equal_alone": [
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    {
+     "failed": 0,
+     "unmeasured": 0,
+     "aggregate_tps": 275.351345268689,
+     "steady_tps": 275.4979596202718,
+     "per_stream_tps": [
+      68.9,
+      68.9,
+      68.9,
+      69.0
+     ],
+     "ttft_s": [
+      0.08,
+      0.08,
+      0.08,
+      0.09
+     ],
+     "errors": [],
+     "equal_alone": [
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   ]
+  }
+ ]
+}

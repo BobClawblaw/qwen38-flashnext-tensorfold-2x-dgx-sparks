@@ -4,7 +4,7 @@ Patches the image build applies on top of TensorFold at `TF_SHA` (`docker build 
 
 ## flashnext-tools-0.6.6.patch
 
-The default image carries it. Two changes to TensorFold v0.6.6 (`cb2ebf0540f42604e2759b2ddef497861e928248`), Apache-2.0 as TensorFold; nine files, including two test files.
+The default image carries it. Three changes to TensorFold v0.6.6 (`cb2ebf0540f42604e2759b2ddef497861e928248`), Apache-2.0 as TensorFold; sixteen files, including three test files.
 
 ### 1. `--tool-system TEXT` on the CUDA server
 
@@ -17,9 +17,19 @@ A system message the server adds to a chat request that offers tools and carries
 
 Files: `src/tensorfold/tool_parameters.py` (`keeps_parameter`, the one rule), `src/tensorfold/server/tools.py` (the end parser), `src/tensorfold/cuda/reply_text.py` (the CUDA reply parser), `src/tensorfold/engine/tool_draft.py` (`ToolCallStreamer` consumes an undeclared parameter without emitting a delta, so streamed and non-streamed arguments agree), `tests/test_tool_undeclared_arguments.py`. A tool that declares no properties still takes every argument; JSON-shaped and GLM calls are not filtered. This does not touch the harness's `formal` case (that parameter is declared); it covers a parameter the tool has no slot for, which a client's tool runner would otherwise receive.
 
+### 3. Copy drafts for Flash Next on CUDA
+
+New `src/tensorfold/families/qwen4_exp/cuda/copy_drafts.py` (Nemotron's `CopyIndex`, unchanged in substance) and edits to `decode.py` (the serial MTP loop), `multi.py` (`_draft_all`, the shared rounds), `multi_solo.py` (the lone stream's graph slot), `multi_fill.py` (the first drafts after a prompt) and `engine.py` (the switch and the startup line); `tests/test_copy_drafts.py`.
+
+- **What.** When a reply's last 8 tokens repeat text seen earlier in the prompt or the reply, the round drafts that text's continuation, whole, up to the depth (15), instead of asking the MTP head. Otherwise the MTP chain runs as before. The verify step is untouched, so replies stay byte-identical to one-token decoding; the kept rows still go into the MTP cache, so the head resumes cleanly on the next round that needs it.
+- **Why.** Quoting, editing and refactoring copy their input. The MTP head landed 6.2-6.6 tokens a round on such replies here (its confidence floor cuts the chain), where a certain chain of 15 lands up to 14 (counting measured 13.6). Fresh prose and code are untouched: no earlier copy, no copy draft.
+- **Two ranks.** Both ranks hold the same tokens (sampling is gathered), so both build the same index and propose the same chain; the per-round plan digest (`multi_tp.shape`) includes each stream's drafts and would stop the ranks if they ever differed. In the shared rounds the first chain level's picks still cover every absorbed stream (the two-rank gather reads them in order); a copying stream's pick is dropped and it joins no later level.
+- **Cost.** The index is a dict of 8-gram starts: a 250k-token prompt builds in 0.12 s on the host at admission, a chain lookup is microseconds, and each stream's index goes with it.
+- **Switch.** On by default with MTP drafts; `TENSORFOLD_COPY_DRAFTS=0` (an `EXTRA_ENV` word) turns it off. Off without MTP drafts (`MTP_DRAFTS=0`), and off for grammar-constrained replies.
+
 ### Validation
 
-`tests/test_cuda_tool_system.py` and `tests/test_tool_undeclared_arguments.py`, plus upstream's tool and CUDA-server tests, on the host (the one upstream test that needs `mlx` fails on Linux with or without the patch). On the pair: `evidence/s10-tf066/tool-system/` (the 60-call harness through the served flag) and the README's Quality section.
+`tests/test_cuda_tool_system.py`, `tests/test_tool_undeclared_arguments.py` and `tests/test_copy_drafts.py`, plus upstream's tool, CUDA-server and concurrent-decoder tests (`test_cuda_batch_admit.py`, `test_cuda_growing_caches.py`), inside the image on the CPU and on the host (the one upstream test that needs `mlx` fails on Linux with or without the patch). On the pair: `evidence/s10-tf066/tool-system/` (the 60-call harness through the served flag), `evidence/s10-tf066/copy-drafts/` (copy cells and the concurrency ruler against `"draft": false`), and the README's Quality section.
 
 To change the patch: edit a clean v0.6.6 checkout, run the tests above, regenerate with `git add -N <new files>; git diff HEAD > flashnext-tools-0.6.6.patch`, update the pin in `run.sh` and `recipe.yaml`, rebuild the image, and re-run `quality/t2.py --tasks tools`. Never edit the patch file by hand.
 

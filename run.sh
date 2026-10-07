@@ -78,7 +78,7 @@ MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/flashnext-tools-0.6.6.patch]=21965516eee351b4ce9de8a37ce49c02396a66eb2a4c19a6670eff622bc12e3f
+  [patches/flashnext-tools-0.6.6.patch]=f19e1a3048ad1223f144b68531dc7b563328dbc8b92e45ad6663698de6042a8f
 )
 
 die() {

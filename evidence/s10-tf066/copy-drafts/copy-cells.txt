@@ -1,0 +1,6 @@
+# one stream, greedy; drafts on (copy + MTP) against the same request with "draft": false (one token a round); sha = reply token sha
+prose: write fresh (essay)       drafts:  687 tok   71.1 tok/s rounds= 332 tok/round= 2.1 accepted=354/611 sha=2bbc23458711 | no drafts:  48.7 tok/s sha=2bbc23458711 | EQUAL
+prose: copy verbatim             drafts:  900 tok  344.6 tok/s rounds=  58 tok/round=15.5 accepted=841/845 sha=c11c6bcad66c | no drafts:  48.5 tok/s sha=c11c6bcad66c | EQUAL
+prose: light edit (fix typos)    drafts:  900 tok  323.3 tok/s rounds=  58 tok/round=15.5 accepted=841/845 sha=c11c6bcad66c | no drafts:  49.0 tok/s sha=c11c6bcad66c | EQUAL
+code: write fresh                drafts:  900 tok  129.8 tok/s rounds= 159 tok/round= 5.7 accepted=740/1053 sha=9866378acb20 | no drafts:  48.7 tok/s sha=9866378acb20 | EQUAL
+code: refactor (rename var)      drafts:  848 tok  288.2 tok/s rounds=  61 tok/round=13.9 accepted=786/836 sha=755d7916619e | no drafts:  48.5 tok/s sha=755d7916619e | EQUAL

@@ -5,7 +5,7 @@ Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/Tensor
 This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
 - **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PROFILE=concurrent` (`PARALLEL=16`) for sixteen streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
-- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
+- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). Copy drafts: a reply whose last 8 tokens repeat earlier text drafts that text's continuation whole, up to the depth, instead of an MTP chain, so quoting, editing and refactoring decode faster with byte-identical output (`TENSORFOLD_COPY_DRAFTS=0` turns it off). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
 - **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, sixteen streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
@@ -43,6 +43,20 @@ Conditions: streamed greedy, thinking off, max_tokens 200 (prose ends at EOS nea
 | chat prompt, greedy, 8 users | 439.1 tok/s aggregate (55.1 per stream), slowest first token 0.17 s | same |
 
 Every concurrent reply had the same token sha as the same request sent alone (`--alone`: 8 of 8 equal in both 8-user cells). A round's cost grows with the rows it verifies: about 29 ms when prose accepts 2 drafts a round, about 50-60 ms when counting, copying or code accept 6-14. Measured on one stream, 900-token replies: fresh prose 72 tok/s at 2.1 tokens a round; verbatim copy of a prompt passage 130 tok/s at 6.6; fixing typos in it 124 at 6.2; fresh code 127 at 5.7; renaming a variable across a file 135 at 6.4 (`evidence/s10-tf066/copy-vs-fresh.txt`). Against the base recipe's 0.6.2 numbers on the same ruler: prose c=1 65.6 against 69.6 (serial profile with CUDA graphs) and 67.0 (its PR141 port, measured here before the upgrade); structured c=1 232.9 against 249.5 and 223. The startup line's "0 decode graphs captured" counts only the serial engine's warm-up; with `PARALLEL=8` a lone stream gets its own graph slot and captures lazily on first use (`multi_solo.py`), and shared rounds with several streams run eager. The single-stream gap to the serial profile is 5-10% on repeated prompts and 27-43% on distinct ones (the per-prompt warm-up of the concurrent decoder; see the next section); `PARALLEL=1` removes it for a single user.
+
+### Copy drafts: quoting, editing and refactoring
+
+The recipe's patch adds copy drafts to Flash Next on CUDA: when a reply's last 8 tokens repeat text seen earlier (in the prompt or the reply), the round drafts that text's continuation whole, up to the depth of 15, instead of asking the MTP head. The verify step is untouched, so every reply below has the same token sha as the same request decoded one token a round (`"draft": false`). One stream, greedy, 900-token replies, this boot ([`copy-drafts/`](evidence/s10-tf066/copy-drafts/)):
+
+| Cell | before (MTP only) | with copy drafts | tokens per round | one token a round |
+|---|---:|---:|---:|---:|
+| copy a passage verbatim | 130 | **345** | 15.5 | 48.5 |
+| fix typos in a passage | 124 | **323** | 15.5 | 49.0 |
+| rename a variable across a file | 135 | **288** | 13.9 | 48.5 |
+| fresh prose (essay) | 72 | 71 | 2.1 | 48.7 |
+| fresh code | 127 | 130 | 5.7 | 48.7 |
+
+Fresh text has no earlier copy to draft from and is unchanged, as are the frozen ruler (prose 67.9, structured 235.7) and the 1 and 4-user cells (code 106 / 323, chat 87 / 274, every reply equal to its solo run and to one-token decoding). A plain round with no drafts costs about 20 ms; a copied chain of 15 verifies in about 45 ms. `TENSORFOLD_COPY_DRAFTS=0` in `EXTRA_ENV` turns it off.
 
 ### One user: serial against concurrent profile
 

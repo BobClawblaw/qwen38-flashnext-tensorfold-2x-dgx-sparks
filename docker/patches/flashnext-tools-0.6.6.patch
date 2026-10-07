@@ -164,6 +164,315 @@ index bd64ae6..2240b6e 100644
                      import json
                      out.append(self._args(json.dumps(decode_parameter(self.value_buffer, self.value_schema), ensure_ascii=False)))
                  else:
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/copy_drafts.py b/src/tensorfold/families/qwen4_exp/cuda/copy_drafts.py
+new file mode 100644
+index 0000000..3e655a7
+--- /dev/null
++++ b/src/tensorfold/families/qwen4_exp/cuda/copy_drafts.py
+@@ -0,0 +1,54 @@
++"""Copy drafts for Flash Next on CUDA: when the reply's last tokens repeat earlier text, draft that text's continuation.
++
++A stream that quotes, edits or refactors its prompt lands far more drafts a round this way than its MTP head does
++(the head stops a chain at its confidence floor; a copied continuation is proposed whole, up to the round's depth),
++and the verify step keeps replies byte-identical either way. ``CopyIndex`` is Nemotron's (``nemotron_h/cuda/decode.py``):
++n-gram starts keep each round O(new). Both ranks hold the same tokens, so both propose the same chain.
++``TENSORFOLD_COPY_DRAFTS=0`` turns copy drafts off."""
++
++from __future__ import annotations
++
++import os
++from collections.abc import Sequence
++
++COPY_MATCH = 8          # the context's last this many tokens must have appeared before, and at least this many follow
++
++
++def enabled(default: bool = True) -> bool:
++    value = os.environ.get("TENSORFOLD_COPY_DRAFTS")
++    return default if value is None else value.strip().lower() not in ("0", "off", "false", "no")
++
++
++class CopyIndex:
++    """Longest continuation of an earlier copy of the last ``min_match`` tokens; n-gram starts keep a round O(new)."""
++
++    def __init__(self, context: Sequence[int], min_match: int = COPY_MATCH):
++        self.m = int(min_match)
++        self.ctx: list[int] = []
++        self.starts: dict[tuple, list[int]] = {}
++        self.extend(context)
++
++    def extend(self, tokens: Sequence[int]) -> None:
++        for t in tokens:
++            self.ctx.append(int(t))
++            s = len(self.ctx) - self.m
++            if s >= 0:
++                self.starts.setdefault(tuple(self.ctx[s:]), []).append(s)
++
++    def chain(self, max_nodes: int) -> list[int]:
++        """Up to ``max_nodes`` tokens that followed the latest earlier copy of the context's tail, or [] (fewer than
++        ``min_match`` would follow, or no copy)."""
++
++        ctx, m = self.ctx, self.m
++        if len(ctx) < 2 * m or max_nodes < m:
++            return []
++        best: list[int] = []
++        for start in reversed(self.starts.get(tuple(ctx[-m:]), [])):
++            if start > len(ctx) - m - 1:                 # the needle itself
++                continue
++            cont = ctx[start + m:start + m + max_nodes]
++            if len(cont) > len(best):
++                best = cont
++                if len(best) == max_nodes:
++                    break
++        return best if len(best) >= m else []
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/decode.py b/src/tensorfold/families/qwen4_exp/cuda/decode.py
+index ea765aa..c026a44 100644
+--- a/src/tensorfold/families/qwen4_exp/cuda/decode.py
++++ b/src/tensorfold/families/qwen4_exp/cuda/decode.py
+@@ -443,8 +443,17 @@ def serial_decode(e: Engine, pending: int, count: int, sampling: Sampling | None
+ @torch.no_grad()
+ def mtp_decode(e: Engine, pending: int, count: int, sampling: Sampling | None, *, depth: int = DEPTH,
+                confidence: float = CONFIDENCE, stop_eos: bool = False, on_tokens=None, constraint=None,
+-               probabilities=None) -> DecodeResult:
+-    """Verify pending and drafted tokens from the prefill state, commit rows before the first mismatched draft, and call ``on_tokens(new)`` with kept tokens after pending, stopping on True."""
++               probabilities=None, copies=None) -> DecodeResult:
++    """Verify pending and drafted tokens from the prefill state, commit rows before the first mismatched draft, and call ``on_tokens(new)`` with kept tokens after pending, stopping on True.
++    ``copies``: a ``CopyIndex`` over the prompt and ``pending``; a round whose context tail repeats earlier text drafts that text's continuation instead of an MTP chain."""
++
++    def propose(streams, next_tokens, n):
++        """Copy drafts when the index has a chain (the MTP cache still absorbs the kept rows), else the MTP chain."""
++        copied = copies.chain(n) if copies is not None else []
++        if copied:
++            absorb(e, streams, next_tokens)
++            return copied
++        return draft(e, streams, next_tokens, st.pos + 1, n, sampling, confidence)
+ 
+     w, st, b = e.w, e.st, e.buf
+     out = [pending]
+@@ -455,7 +464,7 @@ def mtp_decode(e: Engine, pending: int, count: int, sampling: Sampling | None, *
+     unabsorbed = None                                  # the last round's kept rows, not yet in the MTP cache
+     torch.cuda.synchronize()
+     start = time.perf_counter()
+-    drafts = draft(e, e.last_streams, [pending], st.pos + 1, min(depth, count - len(out)), sampling, confidence)
++    drafts = propose(e.last_streams, [pending], min(depth, count - len(out)))
+     while len(out) < count and not (stop_eos and out[-1] in w.cfg.eos):
+         tokens = [out[-1]] + drafts
+         window = constraint.window(tokens, list(range(-1, len(tokens) - 1))) if constraint is not None else None
+@@ -485,6 +494,8 @@ def mtp_decode(e: Engine, pending: int, count: int, sampling: Sampling | None, *
+         if constraint is not None:
+             constraint.advance(sampled[:keep])
+         out.extend(sampled[:keep])
++        if copies is not None:
++            copies.extend(sampled[:keep])
+         if on_tokens is not None and new and on_tokens(new):
+             break
+         if len(out) >= count or (stop_eos and out[-1] in w.cfg.eos):
+@@ -492,7 +503,7 @@ def mtp_decode(e: Engine, pending: int, count: int, sampling: Sampling | None, *
+         n = min(depth, count - len(out))
+         drafts = []
+         if n > 0:
+-            drafts = draft(e, b.streams[:keep], sampled[:keep], st.pos + 1, n, sampling, confidence)
++            drafts = propose(b.streams[:keep], sampled[:keep], n)
+             unabsorbed = None
+     torch.cuda.synchronize()
+     seconds = time.perf_counter() - start
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/engine.py b/src/tensorfold/families/qwen4_exp/cuda/engine.py
+index 002ff1f..1be6e67 100644
+--- a/src/tensorfold/families/qwen4_exp/cuda/engine.py
++++ b/src/tensorfold/families/qwen4_exp/cuda/engine.py
+@@ -61,9 +61,12 @@ class FlashNextEngine:
+                  draft_vocab: str | int | None = "default", max_len: int | None = None,
+                  context_explicit: bool | None = None, tp: int = 1, rank: int = 0, master: str = "", port: int = 29551,
+                  prefetch: bool = True, graphs: bool = True, streams: int = 1, ple_on_ssd: bool = False,
+-                 kv_dtype: str = "bf16", share: float = 0.0, vision: bool = False, vision_urls: bool = False) -> None:
++                 kv_dtype: str = "bf16", share: float = 0.0, vision: bool = False, vision_urls: bool = False,
++                 copy_drafts: bool | None = None) -> None:
+         import torch
+ 
++        from .copy_drafts import enabled as copy_enabled
++
+         from .exl3_pack import admission, extra_files, is_exl3
+ 
+         from tensorfold.families import quant_method, read_config
+@@ -96,6 +99,8 @@ class FlashNextEngine:
+             raise ValueError(f"MTP draft confidence: a probability from 0 to 1, not {confidence}")
+         torch.cuda.set_device(0)
+         self.tp, self.rank, self.depth, self.confidence = tp, rank, int(depth), float(confidence)
++        # copy drafts (copy_drafts.py): on unless TENSORFOLD_COPY_DRAFTS=0, and never without MTP drafts
++        self.copy_drafts = bool(self.depth > 0 and copy_enabled(True if copy_drafts is None else bool(copy_drafts)))
+         self.streams, self.master, self.graphs_enabled = int(streams), master, bool(graphs)
+         self.kv_dtype = check_kv(kv_dtype)
+         self.comm = None
+@@ -188,7 +193,7 @@ class FlashNextEngine:
+ 
+             self.e = None
+             self.multi = MultiDecoder(w, slots=streams, capacity=self.max_len, depth=self.depth,
+-                                      confidence=self.confidence, keep=KEEP, points=self.points,
++                                      confidence=self.confidence, keep=KEEP, points=self.points, copy=self.copy_drafts,
+                                       kv_dtype=self.kv_dtype, share=share, vision=self.vision,
+                                       prefill_rows=self.prefill_rows, workspace_bytes=prompt_workspace, graphs=graphs)
+             self.scheduler = Scheduler(self.multi, max_streams=streams)
+@@ -246,6 +251,8 @@ class FlashNextEngine:
+         self.serial = None                                # the serial requests' engine, made on first use
+         rule = (f"1 to {self.depth} MTP drafts a round, a chain stops before a later draft under "
+                 f"{self.confidence:.0%}" if self.depth else "no drafts: the serial reference, one token a round")
++        if self.copy_drafts:
++            rule += f", or up to {self.depth} copy drafts where the reply repeats earlier text"
+         where = (f"up to {streams} streams, each growing to {self.context_window} prompt/reply tokens while memory "
+                  f"lasts ({self.multi.memory_gate.room / 2**30:.1f} GiB free for their caches, "
+                  f"{self.multi.window_bytes / 2**30:.2f} GiB for one at the full window), eager" if self.concurrent else
+@@ -425,8 +432,12 @@ class FlashNextEngine:
+         if (on_tokens is not None and on_tokens([first])) or (stop_eos and first in self.eos) or max_tokens <= 1:
+             return stats
+         if self.depth > 0:
++            from .copy_drafts import CopyIndex
++
++            copies = CopyIndex(list(prompt) + [first]) if self.copy_drafts and constraint is None else None
+             res = mtp_decode(self.e, first, max_tokens, sampling, depth=self.depth, confidence=self.confidence,
+-                             stop_eos=stop_eos, on_tokens=on_tokens, constraint=constraint, probabilities=probabilities)
++                             stop_eos=stop_eos, on_tokens=on_tokens, constraint=constraint, probabilities=probabilities,
++                             copies=copies)
+             stats.update(drafted=res.drafted, accepted=res.accepted, min_rows=min(res.widths, default=0))
+         else:
+             res = serial_decode(self.e, first, max_tokens, sampling, stop_eos=stop_eos, on_tokens=on_tokens,
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/multi.py b/src/tensorfold/families/qwen4_exp/cuda/multi.py
+index e4326b4..b60c7fb 100644
+--- a/src/tensorfold/families/qwen4_exp/cuda/multi.py
++++ b/src/tensorfold/families/qwen4_exp/cuda/multi.py
+@@ -23,6 +23,7 @@ from . import attn_multi, gdn_multi, image_rows, prefixes
+ from .forward import commit, compute, compute_mixed, converges, stage
+ from .mtp import mtp_compute, mtp_stage
+ from .state import Buffers, State
++from .copy_drafts import CopyIndex
+ from .multi_solo import Alone, solo
+ from .multi_fill import FILL_GUARD, PASS_MIN, PromptPasses
+ from .multi_tp import Link as Link
+@@ -49,8 +50,10 @@ class MultiDecoder(TwoRanks, Alone, PromptPasses):
+ 
+     def __init__(self, w, *, slots: int, capacity: int, depth: int = DEPTH, confidence: float = CONFIDENCE,
+                  stop_eos: bool = True, keep: int = 8, kv_dtype: str = "bf16", prefill_rows: int = PREFILL_ROWS,
+-                 share: float = SHARE, points=None, graphs: bool = True, vision=None, workspace_bytes: int = 0) -> None:
++                 share: float = SHARE, points=None, graphs: bool = True, vision=None, workspace_bytes: int = 0,
++                 copy: bool = True) -> None:
+         self.link = self.follower = None
++        self.copy = bool(copy)                       # copy drafts (copy_drafts.py) for streams that draft
+         self.planning, self.pass_plan, self.mixed_plan = False, None, None
+         self.pass_index, self.pass_width = 0, prefill_rows
+         self.w, self.depth, self.confidence, self.capacity = w, depth, confidence, capacity
+@@ -399,6 +402,8 @@ class MultiDecoder(TwoRanks, Alone, PromptPasses):
+                     s.error = exc
+             last = s.error is not None or len(s.out) + len(new) >= s.count or end in self._ends(s)
+             kept.append((s, a0, rows[:len(path)], new, last))
++            if s.copies is not None:                     # the copy index sees the round's tokens before the next draft
++                s.copies.extend(new)
+         self._draft_all([(s, a0, keep) for s, a0, keep, _, last in kept if s.draft and not last])
+         for s, _, _, new, _ in kept:
+             if s.error is not None:
+@@ -415,7 +420,9 @@ class MultiDecoder(TwoRanks, Alone, PromptPasses):
+         return failed + done + ended
+ 
+     def _draft_all(self, streams: list) -> None:
+-        """Every drafting stream absorbs its kept rows and chains drafts, all streams in one step a depth."""
++        """Every drafting stream absorbs its kept rows and chains drafts, all streams in one step a depth.
++        A stream whose context tail repeats earlier text takes that text's continuation as its drafts instead
++        (copy_drafts.py); its kept rows still go into the MTP cache, and it sits out the chain levels."""
+ 
+         for s, _, _ in streams:
+             s.drafts = []
+@@ -423,6 +430,13 @@ class MultiDecoder(TwoRanks, Alone, PromptPasses):
+         todo = [(s, a0, keep) for s, a0, keep in streams if room[s.sid] > 0 and self.mbuf is not None]
+         if not todo:
+             return
++        copying: set[int] = set()
++        for s, _, _ in todo:
++            if s.copies is not None:
++                copied = s.copies.chain(room[s.sid])
++                if copied:
++                    s.drafts = copied
++                    copying.add(s.sid)
+         for s, _, _ in todo:
+             st = s.st
+             if st.mtp_drafted:
+@@ -434,10 +448,16 @@ class MultiDecoder(TwoRanks, Alone, PromptPasses):
+         for (s, _, keep), (st, a0, a1) in zip(todo, segs):
+             st.set_mtp_len(st.mtp_len + len(keep))
+         active = [(s, a1 - 1) for s, (_, _, a1) in zip([t[0] for t in todo], segs)]
++        if len(copying) == len(active):
++            return
+         for j in range(self.depth):
++            # the first level's picks cover every absorbed stream (the two-rank gather reads them in order);
++            # a copying stream's pick is dropped and it joins no later level
+             picks = self._picks(logits, [s.st.pos + 1 + j for s, _ in active], [s.sampling for s, _ in active])
+             nxt = []
+             for (s, row), (d, p) in zip(active, picks):
++                if s.sid in copying:
++                    continue
+                 low = self.confidence > 0 and p < self.confidence
+                 if low and j > 0:
+                     continue
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py b/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
+index d909da0..dbf2c9b 100644
+--- a/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
++++ b/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
+@@ -10,7 +10,8 @@ from tensorfold.cuda.logprobs import capture
+ from tensorfold.cuda.streams import Stream
+ 
+ from . import image_rows
+-from .decode import _gathered_fits, choose_gathered, entry_end, draft, tp_sample_rows
++from .copy_drafts import CopyIndex
++from .decode import _gathered_fits, absorb, choose_gathered, entry_end, draft, tp_sample_rows
+ from .forward import Cut, commit, compute, cut_snapshot, stage
+ from .mtp import mtp_compute, mtp_stage
+ from .state import CAND, ENDS
+@@ -216,8 +217,16 @@ class PromptPasses:
+                 s.constraint.advance([first])
+             head += 1
+             s.context = list(s.prompt)
+-            s.drafts = draft(e, last, [first], st.pos + 1, min(self.depth, s.count - 1), s.sampling,
+-                             self.confidence) if mtp and s.count > 1 else []
++            s.copies = CopyIndex(list(s.prompt) + [first]) if mtp and self.copy and s.constraint is None else None
++            s.drafts = []
++            if mtp and s.count > 1:
++                room = min(self.depth, s.count - 1)
++                copied = s.copies.chain(room) if s.copies is not None else []
++                if copied:                               # the MTP cache absorbs the prompt's last row either way
++                    absorb(e, last, [first])
++                    s.drafts = copied
++                else:
++                    s.drafts = draft(e, last, [first], st.pos + 1, room, s.sampling, self.confidence)
+             s.started = time.perf_counter()
+             self.streams[s.sid] = s
+             s.take([first], self._ends(s))
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/multi_solo.py b/src/tensorfold/families/qwen4_exp/cuda/multi_solo.py
+index 23bc86a..30b4808 100644
+--- a/src/tensorfold/families/qwen4_exp/cuda/multi_solo.py
++++ b/src/tensorfold/families/qwen4_exp/cuda/multi_solo.py
+@@ -8,7 +8,7 @@ from tensorfold.cuda.kernels import gdn
+ from tensorfold.cuda.logprobs import capture
+ from tensorfold.cuda.streams import Stream, accept
+ 
+-from .decode import Engine, draft
++from .decode import absorb, Engine, draft
+ from .forward import commit
+ from .state import Buffers
+ 
+@@ -120,8 +120,15 @@ class Alone:
+         last = len(s.out) + len(new) >= s.count or end in self._ends(s)
+         s.drafts = []
+         room = min(self.depth, s.count - len(s.out) - len(path))
++        if s.copies is not None:                         # the copy index sees the round's tokens before the next draft
++            s.copies.extend(new)
+         if not last and room > 0:
+-            s.drafts = draft(e, e.buf.streams[:len(path)], rows[:len(path)], st.pos + 1, room, s.sampling,
+-                             self.confidence)
++            copied = s.copies.chain(room) if s.copies is not None else []
++            if copied:                                   # copy drafts; the MTP cache still absorbs the kept rows
++                absorb(e, e.buf.streams[:len(path)], rows[:len(path)])
++                s.drafts = copied
++            else:
++                s.drafts = draft(e, e.buf.streams[:len(path)], rows[:len(path)], st.pos + 1, room, s.sampling,
++                                 self.confidence)
+         s.take(new, self._ends(s))
+         return [s] if s.done else []
 diff --git a/src/tensorfold/server/tools.py b/src/tensorfold/server/tools.py
 index d7042f8..1270fa1 100644
 --- a/src/tensorfold/server/tools.py
@@ -211,6 +520,66 @@ index d722004..791d027 100644
  def parameter_schemas(tools: Sequence[dict[str, Any]] | None) -> dict[str, dict[str, Any]]:
      """Each offered tool's parameter schemas by lowercase name; a spec that is not an object reads as untyped."""
  
+diff --git a/tests/test_copy_drafts.py b/tests/test_copy_drafts.py
+new file mode 100644
+index 0000000..e1a9eec
+--- /dev/null
++++ b/tests/test_copy_drafts.py
+@@ -0,0 +1,54 @@
++"""Copy drafts for Flash Next on CUDA: the index proposes the continuation of an earlier copy of the context's tail,
++at least ``COPY_MATCH`` tokens of it, never the needle itself, the latest copy first; and the switch reads its env."""
++
++import os
++
++from tensorfold.families.qwen4_exp.cuda.copy_drafts import COPY_MATCH, CopyIndex, enabled
++
++A = list(range(100, 140))                 # 40 distinct tokens
++B = list(range(200, 212))                 # 12 more
++
++
++def test_no_copy_no_chain():
++    assert CopyIndex(A).chain(15) == []
++    assert CopyIndex(A + A[:COPY_MATCH - 1]).chain(15) == []      # the tail repeats fewer than COPY_MATCH tokens
++
++
++def test_a_repeated_tail_drafts_its_continuation():
++    ctx = A + B + A[:COPY_MATCH]                                    # the tail is A's first 8 tokens again
++    assert CopyIndex(ctx).chain(15) == A[COPY_MATCH:COPY_MATCH + 15]
++    assert CopyIndex(ctx).chain(40) == A[COPY_MATCH:] + B[:8]       # up to max_nodes, across what followed
++
++
++def test_a_round_without_room_for_a_chain_gets_none():
++    ctx = A + B + A[:COPY_MATCH]
++    assert CopyIndex(ctx).chain(COPY_MATCH - 1) == []               # the MTP chain takes such a round
++    assert CopyIndex(ctx).chain(COPY_MATCH) == A[COPY_MATCH:2 * COPY_MATCH]
++
++
++def test_the_latest_copy_wins_and_the_needle_is_not_a_copy():
++    first = A[:COPY_MATCH] + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
++    second = A[:COPY_MATCH] + [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
++    ctx = first + second + A[:COPY_MATCH]
++    assert CopyIndex(ctx).chain(10) == [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
++    # a tail repeated back to back: the earlier copy is followed by the needle, which is drafted (the pattern repeats)
++    assert CopyIndex(A[:COPY_MATCH] + A[:COPY_MATCH]).chain(15) == A[:COPY_MATCH]
++
++
++def test_extend_is_the_same_as_rebuilding():
++    ctx = A + B + A[:COPY_MATCH + 4]
++    grown = CopyIndex(ctx[:30])
++    for t in ctx[30:]:
++        grown.extend([t])
++    assert grown.chain(15) == CopyIndex(ctx).chain(15) == A[COPY_MATCH + 4:COPY_MATCH + 4 + 15]
++    assert grown.ctx == ctx
++
++
++def test_switch(monkeypatch):
++    monkeypatch.delenv("TENSORFOLD_COPY_DRAFTS", raising=False)
++    assert enabled() and not enabled(False)
++    for off in ("0", "off", "False", " no "):
++        monkeypatch.setenv("TENSORFOLD_COPY_DRAFTS", off)
++        assert not enabled()
++    monkeypatch.setenv("TENSORFOLD_COPY_DRAFTS", "1")
++    assert enabled(False)
 diff --git a/tests/test_cuda_tool_system.py b/tests/test_cuda_tool_system.py
 new file mode 100644
 index 0000000..504d93b
