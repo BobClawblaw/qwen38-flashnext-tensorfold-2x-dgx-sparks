@@ -188,7 +188,7 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 | MTP drafts | `--mtp-drafts 15 --mtp-confidence 0.70` |
 | `--parallel` | 1 by default; `PROFILE=concurrent` (or `PARALLEL=8`) serves eight streams on two ranks (TensorFold 0.6.4+) |
 | Default thinking | off (`THINKING=0`); requests override with `chat_template_kwargs.enable_thinking` |
-| `--max-tokens` | 4096 (the reply cap when a request sets none) |
+| `--max-tokens` | 32768 (the reply cap when a request sets none) |
 | NCCL | `NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1`, `NCCL_SOCKET_IFNAME=enp1s0f1np1` |
 | API | `http://<head>:8000/v1`, served as `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` |
 | Container | `tf-qwen38-flashnext` |
@@ -207,7 +207,7 @@ At start it also refuses another running GPU container on either node, a busy po
 ## Not supported (TensorFold 0.6.6 on two ranks)
 
 - With `--parallel` above 1: no `response_format` / `guided_*` grammars (HTTP 400), no logprobs, no images. The serial default serves `response_format` through xgrammar on both ranks.
-- Each request decodes to `max_tokens` or EOS on both ranks. A client disconnect, a stop string, a forced `tool_choice` and a `thinking_budget` cut stop what is sent, not the GPU work. Set `max_tokens` per request; `MAX_TOKENS` (default 4096) applies when a request sets none, and a thinking reply can spend all of it inside the think block.
+- Each request decodes to `max_tokens` or EOS on both ranks. A client disconnect, a stop string, a forced `tool_choice` and a `thinking_budget` cut stop what is sent, not the GPU work. Set `max_tokens` per request; `MAX_TOKENS` (default 32768, clamped by the engine to the room left in the window) applies when a request sets none. The base recipe's 4096 let a thinking reply run out inside its think block and return nothing.
 - A rank that dies mid-request leaves the other waiting in NCCL with no timeout, and `/health` on rank 0 does not check rank 1. Restart with `systemctl restart qwen38-tensorfold` (or `./stop.sh && ./run.sh`).
 - No `n > 1`, no `/tokenize` at two ranks, no presence/frequency penalties (ignored). The reasoning field is `reasoning_content`. The default seed is a hash of the prompt, so identical sampled requests repeat unless they carry a `seed`.
 
