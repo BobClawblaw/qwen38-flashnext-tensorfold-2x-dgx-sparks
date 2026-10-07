@@ -5,6 +5,7 @@ This fork's own changes, newest first. The base recipe's history is in its repos
 
 ## 2026-10-07
 
+- **Cold prefill measured** (`tools/prefill_ttft.py`, `evidence/s10-tf066/prefill-serial.txt`): 2,654 / 2,554 / 2,073 tok/s at 13k / 54k / 215k prompt tokens on the serial profile, the same as one Spark; the second rank buys decode and concurrency, not prefill.
 - **Serial profile measured on its own boot** (`evidence/s10-tf066/serial-vs-concurrent/frozen-c1-serial-boot.out`): frozen prose 73.3 tok/s, structured 243.6 at one user, against 65.6 / 232.9 on the concurrent profile.
 - **Quality gates rerun on 0.6.6** (`evidence/s10-tf066/quality`): GSM8K 95.6%, IFEval 85.0%, tools 60/60, repeated 4-grams 0.04%, `reasoning_effort` 5/5, needles 24/24 and 6/6 at 250k, JSON schema 30/30 on the serial profile. Patch part 3's attribute reads made defensive for engines built without `__init__` (upstream's tests do that); same runtime behaviour.
 - **Upstream:** the copy drafts are offered as TensorFold pull request #468 with the full receipt. `docs/two-rank-vision-scope.md` scopes image input on two ranks (not started).

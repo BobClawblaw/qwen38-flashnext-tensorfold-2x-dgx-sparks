@@ -1,0 +1,4 @@
+# tools/prefill_ttft.py on the serial profile (PROFILE=serial, PARALLEL=1), 2026-10-07, one cold prompt per size, thinking off, 4-token reply
+6000 words: prompt_tokens=13313 ttft=5.02s prefill=2654 tok/s
+24000 words: prompt_tokens=53584 ttft=20.98s prefill=2554 tok/s
+96000 words: prompt_tokens=214926 ttft=103.67s prefill=2073 tok/s

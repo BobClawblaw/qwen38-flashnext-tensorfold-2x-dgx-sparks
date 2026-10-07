@@ -108,6 +108,18 @@ The same with a 1,000-token system prompt in front (`tools/bench_longctx_concurr
 
 Slowest first token in any cell: 0.1 s. Four users on 512-token replies reach 280-330 tok/s aggregate. Code slows from 512 to 1024 tokens while chat does not: the second half of the code reply is the test file, which drafts worse than the class it tests.
 
+### Cold prefill, one prompt
+
+`tools/prefill_ttft.py` on the serial profile: one fresh random-word prompt per size, streamed, thinking off, prefill rate = prompt tokens / time to the first content token. Receipt: [`evidence/s10-tf066/prefill-serial.txt`](evidence/s10-tf066/prefill-serial.txt).
+
+| Prompt tokens | Time to first token | Prefill |
+|---:|---:|---:|
+| 13,313 | 5.0 s | 2,654 tok/s |
+| 53,584 | 21.0 s | 2,554 tok/s |
+| 214,926 | 103.7 s | 2,073 tok/s |
+
+The second rank does not speed prefill up: a single Spark running the Mia'a AI Lab recipe (TensorFold 0.6.1, 2,048-row pieces) reports 2,421 / 2,462 / 2,180 tok/s at 8k / 32k / 128k. The pair's gain is in decode and concurrency, not in the prompt pass; the four-stream cold fill below runs at about 1,900 prompt tok/s in total.
+
 ### Four streams at 250k tokens each (1M tokens live on the pair)
 
 `tools/bench_longctx_concurrent.py`: four distinct 250k-token system prompts, four requests started together, greedy, thinking off, 512-token replies. Receipts and the engine's own per-request lines: [`evidence/s10-tf066/longctx-c4/`](evidence/s10-tf066/longctx-c4/).
