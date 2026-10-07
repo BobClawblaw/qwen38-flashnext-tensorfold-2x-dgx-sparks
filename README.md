@@ -73,6 +73,8 @@ Same image, same boot. `PARALLEL=1` (the serial engine, 48 CUDA graphs) against 
 | chat, 512 tokens | 78 | **97** |
 | count 1 to 400 | 166 | **226** |
 
+Rerun with the serial profile booted as the default (`PROFILE=serial`, fresh start, `frozen-c1-serial-boot.out`): frozen prose 73.3 tok/s, structured 243.6, TTFT 53-61 ms after the first request, against 65.6 and 232.9 on the concurrent profile's second pass.
+
 The concurrent decoder pays a per-prompt warm-up, so repeated prompts look close to the serial engine and real traffic (a new prompt every time) does not: 27-43% slower. If the pair serves one client at a time, set `PARALLEL=1` in `.env.cluster` (it also serves `response_format`). Keep `PROFILE=concurrent` when several clients share it: 260-330 tok/s aggregate at four users, 650-715 at sixteen.
 
 ### Replies of 512 and 1024 tokens, 1 to 4 users
