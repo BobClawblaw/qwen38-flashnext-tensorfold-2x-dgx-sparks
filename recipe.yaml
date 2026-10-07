@@ -24,7 +24,7 @@ engine:
   commit: &tf_sha cb2ebf0540f42604e2759b2ddef497861e928248
   # sha256 of every shipped patch under docker/patches/ (run.sh PATCH_PINS must match; tests/ check the files).
   patches:
-    flashnext-tools-0.6.6.patch: aff3185afccb3d2b22e85be0e5d8b8650f08a190579c799b9f8a9eb838dd44da
+    flashnext-tools-0.6.6.patch: 023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
 
 hardware:
   shape: 2x DGX Spark (GB10)

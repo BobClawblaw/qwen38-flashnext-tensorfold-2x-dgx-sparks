@@ -6,6 +6,8 @@ Patches the image build applies on top of TensorFold at `TF_SHA` (`docker build 
 
 The default image carries it. Five changes to TensorFold v0.6.6 (`cb2ebf0540f42604e2759b2ddef497861e928248`), Apache-2.0 as TensorFold; twenty-one files, including four test files.
 
+**Upstream.** Parts 3, 4 and 5 are in TensorFold main since 2026-10-07: pull request #468 (copy drafts, merged as `5b1d8a1`) and #473 (image and video input on two ranks, concurrent and serial engines, merged as `6ff0600` with the recipe's two commits as they were). Upstream followed with `6e8f29e` (the vision start line had a backslash inside an f-string expression, which Python 3.11 rejects; 0.6.6 supports 3.11, so the engine module would not import there; this recipe's image runs Python 3.12 and never hit it), then `d19e30a` and `ed78d6f` (the contributed docstrings and comments folded onto one line each, upstream's house style). The patch carries all three, so its Flash Next files (`families/qwen4_exp/cuda/*`, `tests/test_copy_drafts.py`, `tests/test_flashnext_vision_two_ranks_host.py`) are byte-identical to main at `ed78d6f`. The Python engine is frozen at 0.6.6, so no tagged release carries this work; the patch stays while the image builds from v0.6.6. Parts 1 and 2 (tools) are recipe-only.
+
 ### 1. `--tool-system TEXT` on the CUDA server
 
 A system message the server adds to a chat request that offers tools and carries no system message of its own. A request's own system message wins, and a request without tools is rendered exactly as before. Files: `src/tensorfold/cli_args.py` (the flag), `src/tensorfold/cli.py` (plumbed to the app), `src/tensorfold/cuda/server.py` (`App.__init__` keeps it; `_prepare` prepends it before the template renders), `tests/test_cuda_tool_system.py`.

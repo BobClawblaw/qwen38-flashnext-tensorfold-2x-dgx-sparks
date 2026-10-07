@@ -1,0 +1,36 @@
+# upstream follow-ups folded into the patch (pin 023db641), 2026-10-07: image rebuilt, pair restarted PROFILE=concurrent VISION=1
+# patch's Flash Next files byte-identical to TensorFold main at ed78d6f (6e8f29e f-string fix, d19e30a + ed78d6f one-line docstrings)
+# in-image tests: test_copy_drafts, test_flashnext_vision_two_ranks_host, test_flashnext_message_points, test_cuda_tool_system, test_tool_undeclared_arguments, test_flashnext_round_plan, test_cuda_cli: 110 passed
+# the first systemd start after the image swap hit the known NCCL init race on the worker (ibv_reg_mr_iova2: cannot allocate memory during transport setup).
+# systemd's retries then looped 16 times: run.sh started rank 1 before stopping the head left by the failed attempt, rank 1 joined that stale rendezvous store and died
+# when the stale head was stopped 6 s later (docker events on both nodes). run.sh now stops a stale head first and stops the head when the worker dies; the pair below started clean.
+image label: 023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
+running container label: 
+## rank 0
+## rank 1
+## tools/visioncheck.py
+  File "/usr/lib/python3.12/urllib/request.py", line 532, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1373, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 1347, in do_open
+    raise URLError(err)
+09:17-09:41 a DeepSeek V4 Flash vLLM stack (another recipe, root's compose project, relaunched by a cron scheduler every few minutes while 8888 was down) held both GPUs; removed for good at 09:41 (containers, images, units, launch directory).
+09:42-09:47 with the GPUs free, two more starts failed the same way: rank 1 (worker) ibv_reg_mr_iova2 'Cannot allocate memory' at NCCL's first registration (transport setup, sendProxyConnect), the head fine; a host-side perftest (ib_write_bw, head -> worker, 1 MiB) ran at 109 Gb/s, so the NIC and RDMA were up.
+09:47 the worker still held 34 GB of page cache the per-start drop_caches had not released (the 25 GB image load at 08:55) and far fewer high-order free pages than the head (/proc/buddyinfo order-10+: 1760/1379/614 vs 2807/1395/270 at order 11-13 but 83999 vs 12958 order-0 pages free); 'sync; drop_caches; compact_memory' on the worker, then the next start came up first time. Likely cause: the mlx5 driver could not get the kernel pages it needs for a memory region on a fragmented worker; run.sh now compacts after it drops caches.
+
+## pair up 2026-10-07T09:50:40+00:00 (PROFILE=concurrent VISION=1)
+running container label: 023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
+## rank 0
+[tensorfold] vision: image and video input, a 0.84 GiB tower with 4.00 GiB of workspace reserved; rank 1 receives each request's image features from this rank
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%, or up to 15 copy drafts where the reply repeats earlier text; up to 16 streams, each growing to 262144 prompt/reply tokens while memory lasts (55.6 GiB free for their caches, 2.74 GiB for one at the full window), eager; int
+[tensorfold] serving TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP at http://0.0.0.0:8888/v1 on CUDA, rank 0 of 2 (sampling: temperature 1.0, top_k 20, top_p 0.95; drafts: on; prompts: bf16 activations; context: 262144; loaded in 128.0s)
+## rank 1
+[tensorfold] vision: image input on two ranks; this rank attaches the features rank 0 encodes
+[tensorfold] Flash Next on CUDA: 1 to 15 MTP drafts a round, a chain stops before a later draft under 70%, or up to 15 copy drafts where the reply repeats earlier text; up to 16 streams, each growing 
+## tools/visioncheck.py

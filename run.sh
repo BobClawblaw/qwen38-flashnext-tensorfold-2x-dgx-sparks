@@ -81,7 +81,7 @@ MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/flashnext-tools-0.6.6.patch]=aff3185afccb3d2b22e85be0e5d8b8650f08a190579c799b9f8a9eb838dd44da
+  [patches/flashnext-tools-0.6.6.patch]=023db6410f210b5fc4ee640435c25703f09f45a91d930c4caf3b531f2ccef875
 )
 
 die() {
@@ -198,7 +198,11 @@ maybe_drop_caches() {
   if sudo -n true >/dev/null 2>&1; then
     sync
     echo 3 | sudo -n tee /proc/sys/vm/drop_caches >/dev/null
-    log "drop_caches: ran"
+    # Compact too: after a large image load the worker refused NCCL's first memory registration
+    # (ibv_reg_mr: Cannot allocate memory) on seven starts in a row and came up right after one
+    # compaction; the NIC driver wants higher-order pages for a region's translation tables.
+    echo 1 | sudo -n tee /proc/sys/vm/compact_memory >/dev/null 2>&1 || true
+    log "drop_caches: ran (and compact_memory)"
   else
     log "drop_caches: skipped (no passwordless sudo)"
   fi
@@ -448,7 +452,11 @@ worker_state() {
 abort_worker_dead() {
   echo "Worker $CONTAINER_NAME on $WORKER_HOST is not running ($1). Worker logs:" >&2
   ssh -o BatchMode=yes -o ConnectTimeout=5 "$WORKER_HOST" "docker logs --tail 120 '$CONTAINER_NAME'" >&2 2>&1 || true
-  echo "Stop the head with ./stop.sh" >&2
+  # The head alone is useless, and left running it poisons the next start: a rank 1 started before
+  # it is stopped connects to its rendezvous store and dies when it goes (systemd's retries looped
+  # on exactly that). Stop it here, so a retry begins from nothing on both nodes.
+  stop_local
+  echo "Head container stopped; rank 0 does not serve without rank 1." >&2
   exit 1
 }
 
@@ -501,6 +509,7 @@ ROLE="$(detect_role)"
 log "role=$ROLE host=$(host_short)"
 
 if [[ "$ORCHESTRATE" == "auto" && "$ROLE" == "head" ]]; then
+  stop_local                     # a head left from a failed start, before rank 1 could find its store
   refuse_foreign_serve
   refuse_busy_port
   watch_worker=0
