@@ -152,6 +152,7 @@ Two behaviours to plan around:
 | 4 image requests together against each alone | 4 of 4 equal |
 | a text request beside them against alone | equal |
 | frozen text ruler with vision on (prose c=1 / c=2, structured c=1 / c=2) | 66.2 / 60.8, 231.2 / 208.6 (vision off: 65.6 / 60.3, 232.9 / 210.7) |
+| same session, `VISION=0` then `VISION=1`: text decode (`tools/bench_openai.py`), ruler c=1, cold prompts 2k-64k | 92.4 / 95.2 -> 89.3 / 94.4 tok/s; prose 66.2 -> 65.2, structured 231.3 -> 232.0; prompt tok/s equal within 1% |
 
 Costs: rank 0 keeps 0.84 GiB for the tower and 4 GiB of encode workspace (`TENSORFOLD_VISION_WORKSPACE_MIB` in `EXTRA_ENV` resizes it), so it reports 53.4 GiB free for stream caches against 58.0 on rank 1 (two streams at the full window). Four 4k-token image prompts arriving together finish in 12-14 s each against 2-6 s alone: their prompt passes run one after another and `--decode-share` is 0, the same behaviour as text prompts of that size. Image prompts reuse no kept prefix (each turn of a chat with images encodes them again), and `response_format` is not served with them. Limits are TensorFold's: 4 images a request by default (`VISION_MAX_IMAGES`), data URLs only unless `VISION_URLS=1`, 16,384 visual tokens a request, up to 4,096 an image.
 
