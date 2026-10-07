@@ -152,6 +152,7 @@ Two behaviours to plan around:
 | 4 image requests together against each alone | 4 of 4 equal |
 | a text request beside them against alone | equal |
 | frozen text ruler with vision on (prose c=1 / c=2, structured c=1 / c=2) | 66.2 / 60.8, 231.2 / 208.6 (vision off: 65.6 / 60.3, 232.9 / 210.7) |
+| frozen ruler c=1 on the current build (patch pin `023db641`, after the worker's reboot) | prose 67.1, structured 241.5 (`frozen-c1-after-reboot.out`) |
 | same session, `VISION=0` then `VISION=1`: text decode (`tools/bench_openai.py`), ruler c=1, cold prompts 2k-64k | 92.4 / 95.2 -> 89.3 / 94.4 tok/s; prose 66.2 -> 65.2, structured 231.3 -> 232.0; prompt tok/s equal within 1% |
 
 Serial profile (`PARALLEL=1`, part 5), same host session, `VISION=0` then `VISION=1`; receipts in [`evidence/s10-tf066/vision/serial/`](evidence/s10-tf066/vision/serial/):
