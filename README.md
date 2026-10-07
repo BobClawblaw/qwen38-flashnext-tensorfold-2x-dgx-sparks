@@ -204,13 +204,14 @@ GSM8K and IFEval moved by 1 and 2 prompts against 0.6.2 (239 against 238, 102 ag
 
 ### Against the other published Qwen3.8-Flash-Next recipes
 
-Every public recipe for this checkpoint that reports a number, as of 2026-10-07; their figures are their own README's or forum post's, ours are the frozen ruler on this pair. Quantizations differ (MLX 4-bit here and in the other TensorFold recipes, NVFP4, FP8, int4, EXL3 elsewhere), so this is a comparison of served recipes, not of engines on equal weights.
+Every public recipe for this checkpoint that reports a number, as of 2026-10-07; their figures are their own README's or forum post's, ours are the frozen ruler on this pair. Quantizations differ (MLX 4-bit here and in the other TensorFold recipes, NVFP4, FP8, int4, EXL3 elsewhere), so this is a comparison of served recipes, not of engines on equal weights. The EXL3 recipe is this pair's quality-first sibling: the same engine and patch lineage serving turboderp's 4.05 bpw pack on two ranks, slower at one and eight users, with a 1M profile.
 
 | Recipe | Sparks | Engine | One user, prose tok/s | Concurrency, aggregate tok/s |
 |---|---:|---|---:|---|
 | this recipe, `PROFILE=serial` | 2 | TensorFold 0.6.6 | **71-73** (structured 242-250) | one stream |
 | this recipe, `PROFILE=concurrent` with vision | 2 | TensorFold 0.6.6 | **67** (structured 242) | 4 / 8 / 16 users: 280-330 / 460-520 / 650-715 |
 | [sfxnz base recipe](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) | 2 | TensorFold 0.6.2 | 69.6 (structured 249.5) | 4 / 8 users: 162-323 / 228-520 (chat / code) |
+| [EXL3 recipe, same pair](https://github.com/BobClawblaw/qwen38-flashnext-exl3-2x-dgx-sparks) (turboderp 4.05 bpw, two ranks, 1M profile) | 2 | TensorFold 0.6.6 | 57 (structured 231-239) | 4 / 8 / 16 users: 161 / 264 / 367; structured at 16: 801 |
 | [Mia's AI Lab, TensorFold](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Single-DGX-Spark-TensorFold) | 1 | TensorFold 0.6.1 | 63.6 (code 96.9) | 4 users: 114-166 |
 | [ykmran AutoRound int4](https://forums.developer.nvidia.com/t/which-single-spark-qwen3-8-flash-next-thread-is-the-best/382522) | 1 | vLLM | 47.5 code, 60 JSON | not reported |
 | official NVFP4, [blazux](https://github.com/blazux/qwen3.8-Flash-DGX), SGLang | 1 | vLLM, SGLang | 43-44 | not reported |

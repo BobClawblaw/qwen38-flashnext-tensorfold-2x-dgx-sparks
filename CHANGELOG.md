@@ -5,6 +5,7 @@ This fork's own changes, newest first. The base recipe's history is in its repos
 
 ## 2026-10-07
 
+- **Sibling recipe:** the same pair serving turboderp's EXL3 4.05 bpw pack on two ranks, with a 1M YaRN profile, is its own repository (BobClawblaw/qwen38-flashnext-exl3-2x-dgx-sparks); its patch carries this recipe's parts 1 to 5 byte for byte. A row in the README comparison links it.
 - **README: a comparison against every other published Qwen3.8-Flash-Next Spark recipe** (TensorFold single-Spark and base recipes, vLLM and SGLang NVFP4/FP8/int4/EXL3 on one and two Sparks), with the places this recipe does not lead.
 - **Concurrent profile with vision remeasured on the current build** (`evidence/s10-tf066/vision/frozen-c1-after-reboot.out`): frozen prose 67.1 tok/s, structured 241.5 at one user, against 65.2-66.2 / 231.3-232.0 earlier in the day on the same profile.
 - **`run.sh` compacts memory after it drops caches.** On the worker, after the 25 GB image load, NCCL's first memory registration failed with `ibv_reg_mr: Cannot allocate memory` on seven starts in a row (the host's own RDMA test ran at 109 Gb/s, the head registered fine); `sync; drop_caches; compact_memory` on the worker and the next start came up first time. Timeline in `evidence/s10-tf066/vision/upstream-followups.txt`.
