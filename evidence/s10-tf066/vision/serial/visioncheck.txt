@@ -1,0 +1,9 @@
+shapes: 150 prompt tokens, 12 reply tokens in 0.5s (prefill 0.1931s incl. the tower, 143 tok/s, sha a7588cf7f668)
+  reply: The image contains a red circle and a blue square.
+  OK
+photo: 4101 prompt tokens, 36 reply tokens in 3.4s (prefill 1.6396s incl. the tower, 81 tok/s, sha e99c86a30d35)
+  reply: A serene, mirror-like lake reflects a soft, cloudy sky, with two weathered, rust-stained posts rising from the water’s surface, their forms echoed perfectly below.
+  OK
+video: 373 prompt tokens, 17 reply tokens in 0.8s (prefill 0.2469s incl. the tower, 74 tok/s, sha 333c343e9195)
+  reply: The video starts with a green screen, which then changes to a red screen.
+  OK

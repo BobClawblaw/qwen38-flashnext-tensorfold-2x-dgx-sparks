@@ -81,7 +81,7 @@ MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/flashnext-tools-0.6.6.patch]=678f6fdc734bd757651484b41f2bab7577e852f6a319d0132806eba44ccc41f3
+  [patches/flashnext-tools-0.6.6.patch]=aff3185afccb3d2b22e85be0e5d8b8650f08a190579c799b9f8a9eb838dd44da
 )
 
 die() {
@@ -98,9 +98,8 @@ for name in THINKING SKIP_DOWNLOAD HF_HUB_DISABLE_XET MEMGUARD BENCH_ONLY VISION
   [[ "${!name}" =~ ^[01]$ ]] || die "$name=${!name} must be 0 or 1."
 done
 [[ -z "$VISION_MAX_IMAGES" || "$VISION_MAX_IMAGES" =~ ^[1-9][0-9]*$ ]] || die "VISION_MAX_IMAGES=$VISION_MAX_IMAGES is not empty or a positive decimal integer."
-# Images need the concurrent decoder: the patch (part 4) serves them on two ranks with --parallel 2 or more
-# (rank 0 encodes, rank 1 receives the features); the serial engine has no image rows.
-[[ "$VISION" == 1 && "$PARALLEL" -lt 2 ]] && die "VISION=1 needs PARALLEL=2 or more (PROFILE=concurrent): image input runs on the concurrent decoder, on one GPU or on two ranks."
+# Images on either profile (patch parts 4 and 5): rank 0 encodes, rank 1 receives the features. On the serial
+# profile an image request decodes eagerly (the captured graphs are text-only); text requests keep their graphs.
 [[ "$OOM_SCORE_ADJ" =~ ^(-?[1-9][0-9]*|0)$ ]] && (( OOM_SCORE_ADJ >= -1000 && OOM_SCORE_ADJ <= 1000 )) || die "OOM_SCORE_ADJ=$OOM_SCORE_ADJ must be an integer in [-1000, 1000]."
 [[ "$MTP_CONFIDENCE" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]] || die "MTP_CONFIDENCE=$MTP_CONFIDENCE must be a decimal in [0, 1], e.g. 0.70."
 [[ -z "$MEMORY_RESERVE_GIB" || "$MEMORY_RESERVE_GIB" =~ ^[1-9][0-9]*(\.[0-9]+)?$ ]] || die "MEMORY_RESERVE_GIB=$MEMORY_RESERVE_GIB is not empty or a positive decimal."

@@ -225,9 +225,27 @@ index 0000000..3e655a7
 +                    break
 +        return best if len(best) >= m else []
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/decode.py b/src/tensorfold/families/qwen4_exp/cuda/decode.py
-index ea765aa..c026a44 100644
+index ea765aa..946bc05 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/decode.py
 +++ b/src/tensorfold/families/qwen4_exp/cuda/decode.py
+@@ -194,7 +194,7 @@ class Engine:
+     def forward(self, tokens: Sequence[int]) -> torch.Tensor:
+         """A decode step's forward (a CUDA graph when enabled): logits [R, V]."""
+ 
+-        if self.graphs is not None:
++        if self.graphs is not None and self.st.image_positions is None:    # graphs are captured for text rows
+             return self.graphs.forward(tokens)
+         return forward(self.w, self.st, self.buf, tokens)
+ 
+@@ -245,7 +245,7 @@ class Engine:
+         return int(tok), float(np.exp(float(got[hit[0]]) - float(got[k]))) if len(hit) else 0.0
+ 
+     def mtp_forward(self, next_tokens: Sequence[int], streams: torch.Tensor) -> torch.Tensor:
+-        if self.graphs is not None:
++        if self.graphs is not None and self.st.image_positions is None:
+             return self.graphs.mtp_forward(next_tokens, streams)
+         return mtp_forward(self.w, self.st, self.mbuf, next_tokens, streams)
+ 
 @@ -443,8 +443,17 @@ def serial_decode(e: Engine, pending: int, count: int, sampling: Sampling | None
  @torch.no_grad()
  def mtp_decode(e: Engine, pending: int, count: int, sampling: Sampling | None, *, depth: int = DEPTH,
@@ -276,7 +294,7 @@ index ea765aa..c026a44 100644
      torch.cuda.synchronize()
      seconds = time.perf_counter() - start
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/engine.py b/src/tensorfold/families/qwen4_exp/cuda/engine.py
-index 002ff1f..f9bd79c 100644
+index 002ff1f..2678606 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/engine.py
 +++ b/src/tensorfold/families/qwen4_exp/cuda/engine.py
 @@ -61,9 +61,12 @@ class FlashNextEngine:
@@ -293,18 +311,16 @@ index 002ff1f..f9bd79c 100644
          from .exl3_pack import admission, extra_files, is_exl3
  
          from tensorfold.families import quant_method, read_config
-@@ -72,8 +75,8 @@ class FlashNextEngine:
+@@ -72,8 +75,6 @@ class FlashNextEngine:
          if (exl3 or quant_method(read_config(model_dir)) == "modelopt") and tp != 1:
              raise ValueError(f"{'EXL3 packs' if exl3 else 'NVFP4 checkpoints'} of Flash Next run on one GPU: drop --tp "
                               "2, or serve the MLX checkpoint (TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) on two")
 -        if vision and (streams < 2 or tp != 1):
 -            raise ValueError("image input on Flash Next runs on one GPU with --parallel 2 or more")
-+        if vision and streams < 2:
-+            raise ValueError("image input on Flash Next needs --parallel 2 or more (on one GPU or on two ranks)")
          if exl3 and ple_on_ssd:
              raise ValueError("--ple-on-ssd reads the MLX checkpoint's n-gram tables; an EXL3 pack maps its own table "
                               "from its file, so drop --ple-on-ssd")
-@@ -96,6 +99,8 @@ class FlashNextEngine:
+@@ -96,6 +97,8 @@ class FlashNextEngine:
              raise ValueError(f"MTP draft confidence: a probability from 0 to 1, not {confidence}")
          torch.cuda.set_device(0)
          self.tp, self.rank, self.depth, self.confidence = tp, rank, int(depth), float(confidence)
@@ -313,7 +329,7 @@ index 002ff1f..f9bd79c 100644
          self.streams, self.master, self.graphs_enabled = int(streams), master, bool(graphs)
          self.kv_dtype = check_kv(kv_dtype)
          self.comm = None
-@@ -136,7 +141,7 @@ class FlashNextEngine:
+@@ -136,7 +139,7 @@ class FlashNextEngine:
                    f"planned peak {peak:.2f} GiB at the admitted window", flush=True)
          self.max_len = self.capacity_plan["cache_slots"]
          if tp == 2:
@@ -322,7 +338,7 @@ index 002ff1f..f9bd79c 100644
          build_kernels(exl3=exl3, nvfp4=not exl3 and quant_method(read_config(model_dir)) == "modelopt",
                        solo=streams == 1 or (graphs and mtp))
          from concurrent.futures import wait
-@@ -165,7 +170,7 @@ class FlashNextEngine:
+@@ -165,7 +168,7 @@ class FlashNextEngine:
          from tensorfold.cuda.markers import resume_points
  
          self.points = resume_points(model_dir)          # a prompt's message starts to keep states at, or None
@@ -331,7 +347,7 @@ index 002ff1f..f9bd79c 100644
              from tensorfold.vision.qwen_cuda import QwenCudaVision
  
              self.vision = QwenCudaVision(model_dir, torch.device("cuda", 0),
-@@ -173,7 +178,12 @@ class FlashNextEngine:
+@@ -173,7 +176,12 @@ class FlashNextEngine:
              torch.cuda.empty_cache()
              print(f"[tensorfold] vision: image{' and video' if self.vision.videos else ''} input, a "
                    f"{self.vision.weight_bytes / 2**30:.2f} GiB tower with {vision_workspace() / 2**30:.2f} GiB of "
@@ -345,7 +361,7 @@ index 002ff1f..f9bd79c 100644
          # ``streams`` > 1: up to that many requests decoded together, every stream's chain in one forward
          self.concurrent = streams > 1
          self.refuses_structured_output = (
-@@ -189,6 +199,7 @@ class FlashNextEngine:
+@@ -189,6 +197,7 @@ class FlashNextEngine:
              self.e = None
              self.multi = MultiDecoder(w, slots=streams, capacity=self.max_len, depth=self.depth,
                                        confidence=self.confidence, keep=KEEP, points=self.points,
@@ -353,7 +369,7 @@ index 002ff1f..f9bd79c 100644
                                        kv_dtype=self.kv_dtype, share=share, vision=self.vision,
                                        prefill_rows=self.prefill_rows, workspace_bytes=prompt_workspace, graphs=graphs)
              self.scheduler = Scheduler(self.multi, max_streams=streams)
-@@ -246,6 +257,8 @@ class FlashNextEngine:
+@@ -246,6 +255,8 @@ class FlashNextEngine:
          self.serial = None                                # the serial requests' engine, made on first use
          rule = (f"1 to {self.depth} MTP drafts a round, a chain stops before a later draft under "
                  f"{self.confidence:.0%}" if self.depth else "no drafts: the serial reference, one token a round")
@@ -362,7 +378,7 @@ index 002ff1f..f9bd79c 100644
          where = (f"up to {streams} streams, each growing to {self.context_window} prompt/reply tokens while memory "
                   f"lasts ({self.multi.memory_gate.room / 2**30:.1f} GiB free for their caches, "
                   f"{self.multi.window_bytes / 2**30:.2f} GiB for one at the full window), eager" if self.concurrent else
-@@ -264,7 +277,7 @@ class FlashNextEngine:
+@@ -264,7 +275,7 @@ class FlashNextEngine:
                f"decode graphs captured; idle prompt pieces {self.prefill_rows} rows; "
                f"prompt kernels warmed in {warm_s:.1f}s", flush=True)
  
@@ -371,7 +387,7 @@ index 002ff1f..f9bd79c 100644
          """Both ranks must decode with the same rule, context, draft vocabulary and KV cache, or they would fall out of step: refuse to start otherwise."""
  
          from .kvcache import BITS_OF
-@@ -273,14 +286,15 @@ class FlashNextEngine:
+@@ -273,14 +284,15 @@ class FlashNextEngine:
          mine = torch.tensor([self.depth, round(self.confidence * 1e6), self.max_len, self.streams,
                               int(self.graphs_enabled),
                               len(ids) if ids is not None else -1, total, BITS_OF[self.kv_dtype],
@@ -389,7 +405,87 @@ index 002ff1f..f9bd79c 100644
                                 f"rank 0 {both[0].tolist()}, rank 1 {both[1].tolist()}")
  
      def _key(self, n: int) -> str:
-@@ -425,8 +439,12 @@ class FlashNextEngine:
+@@ -296,13 +308,13 @@ class FlashNextEngine:
+             self.comm.store.set(self._key(self.served), json.dumps({"stop": True}))
+ 
+     def _share(self, prompt: list[int], max_tokens: int, sampling, draft: bool, cached: int, constraint=None,
+-               stop_eos: bool = True) -> tuple:
++               stop_eos: bool = True, images: dict | None = None) -> tuple:
+         from tensorfold.engine.grammar import pack
+ 
+         points = getattr(self, "points", None)
+         body = {"prompt": prompt, "max_tokens": max_tokens, "draft": bool(draft), "cached": int(cached),
+-                "points": list(points(prompt)) if draft and points is not None else [],
+-                "stop_eos": bool(stop_eos),
++                "points": list(points(prompt)) if draft and points is not None and images is None else [],
++                "stop_eos": bool(stop_eos), "images": images,       # an image prompt's rows, offset and feature shape
+                 "sampling": None if sampling is None else [int(sampling.seed), float(sampling.temperature),
+                                                            int(sampling.top_k), float(sampling.top_p),
+                                                            float(sampling.min_p)],
+@@ -338,7 +350,7 @@ class FlashNextEngine:
+         s = body["sampling"]
+         return (body["prompt"], body["max_tokens"], None if s is None else Sampling(*s),
+                 body["draft"], body["cached"], body.get("grammar") or [], body.get("stop_eos", True),
+-                body.get("points", []))
++                body.get("images"), body.get("points", []))      # the points stay last (older followers)
+ 
+     @property
+     def context_window(self) -> int:
+@@ -378,7 +390,7 @@ class FlashNextEngine:
+         return self.tp == 1
+ 
+     def _serial(self, prompt: list[int], max_tokens: int, sampling, on_tokens, constraint=None,
+-                stop_eos: bool = True, probabilities=None) -> dict[str, Any]:
++                stop_eos: bool = True, probabilities=None, vision=None) -> dict[str, Any]:
+         """One token a round from a fresh prefill in the serial engine's own state (no drafts, no kept states)."""
+ 
+         import torch
+@@ -388,7 +400,8 @@ class FlashNextEngine:
+         if self.serial is None:
+             self.serial = self.e.twin()
+         t0 = time.perf_counter()
+-        first = prefill(self.serial, prompt, sampling, mtp=False, constraint=constraint, probabilities=probabilities)
++        first = prefill(self.serial, prompt, sampling, mtp=False, constraint=constraint, probabilities=probabilities,
++                        vision=vision)
+         torch.cuda.synchronize()
+         stats: dict[str, Any] = {"prefill_s": round(time.perf_counter() - t0, 4), "cached": 0, "drafts": False}
+         if (on_tokens is not None and on_tokens([first])) or (stop_eos and first in self.eos) or max_tokens <= 1:
+@@ -399,12 +412,14 @@ class FlashNextEngine:
+         return stats
+ 
+     def _decode(self, prompt: list[int], max_tokens: int, sampling, on_tokens, hit, constraint=None,
+-                stop_eos: bool = True, probabilities=None, points=None) -> dict[str, Any]:
++                stop_eos: bool = True, probabilities=None, points=None, vision=None) -> dict[str, Any]:
+         import torch
+ 
+         from .decode import entry_end, mtp_decode, prefill, serial_decode
+ 
+         t0 = time.perf_counter()
++        if vision is not None:
++            hit = None                                  # an image prompt prefills from its start
+         self._start_from(hit)
+         from tensorfold.cuda.markers import MIN_GAP
+ 
+@@ -415,18 +430,27 @@ class FlashNextEngine:
+         stops = [p for p in points if cached + MIN_GAP <= p < end]
+         def keep(p, snap, tail):
+             self._remember(list(prompt[:p]), {"state": snap, "tail": tail})
+-        first = prefill(self.e, prompt, sampling, resume=hit[1] if hit else None, constraint=constraint,
+-                        probabilities=probabilities, keep_at=end, stops=stops, keep=keep)
+-        # the state one token before the prompt's end, so the same prompt or a next turn resumes from it
+-        self._remember(list(prompt[:end]), self.e.kept)
++        if vision is not None:
++            # image rows and positions on the state; no kept snapshot (text only), the rounds run eagerly
++            # (Engine.forward: the captured graphs know no image positions), as the concurrent decoder does
++            first = prefill(self.e, prompt, sampling, constraint=constraint, probabilities=probabilities, vision=vision)
++        else:
++            first = prefill(self.e, prompt, sampling, resume=hit[1] if hit else None, constraint=constraint,
++                            probabilities=probabilities, keep_at=end, stops=stops, keep=keep)
++            # the state one token before the prompt's end, so the same prompt or a next turn resumes from it
++            self._remember(list(prompt[:end]), self.e.kept)
+         torch.cuda.synchronize()
+         stats: dict[str, Any] = {"prefill_s": round(time.perf_counter() - t0, 4), "cached": len(hit[0]) if hit else 0,
+                                  "drafts": True}
          if (on_tokens is not None and on_tokens([first])) or (stop_eos and first in self.eos) or max_tokens <= 1:
              return stats
          if self.depth > 0:
@@ -403,6 +499,68 @@ index 002ff1f..f9bd79c 100644
              stats.update(drafted=res.drafted, accepted=res.accepted, min_rows=min(res.widths, default=0))
          else:
              res = serial_decode(self.e, first, max_tokens, sampling, stop_eos=stop_eos, on_tokens=on_tokens,
+@@ -461,18 +485,27 @@ class FlashNextEngine:
+                                          **grammar, **({"background": True} if background else {}),
+                                          probabilities=probabilities,
+                                          **({"vision": vision} if vision is not None else {}))
+-        hit = self._resume(prompt) if draft else None
++        hit = self._resume(prompt) if draft and vision is None else None
+         points = None
++        # the serial engine's image prompts: rank 0 encodes before the request is shared (a refused image fails
++        # here alone), and after sharing sends the features to rank 1, which attaches the same tensors
++        encoded = self.vision.encode(vision, prompt) if vision is not None else None
+         if self.tp == 2:                     # rank 0 decodes exactly what it hands rank 1
+-            prompt, max_tokens, sampling, draft, _, _, stop_eos, points = self._share(
+-                prompt, max_tokens, sampling, draft, len(hit[0]) if hit else 0, constraint, stop_eos)
++            from .vision_ranks import describe, exchange
++
++            prompt, max_tokens, sampling, draft, _, _, stop_eos, images, points = self._share(
++                prompt, max_tokens, sampling, draft, len(hit[0]) if hit else 0, constraint, stop_eos,
++                images=describe(encoded))
+             self.served += 1
++            if images is not None:
++                encoded = exchange(self.comm, 0, len(prompt), images, encoded, hidden=int(self.w.cfg.hidden))
+             emit = on_tokens
+             on_tokens = lambda new: (emit(new), False)[1]       # noqa: E731  both ranks decode to the end
+         if not draft:
+-            return self._serial(prompt, max_tokens, sampling, on_tokens, constraint, stop_eos, probabilities=probabilities)
++            return self._serial(prompt, max_tokens, sampling, on_tokens, constraint, stop_eos,
++                                probabilities=probabilities, vision=encoded)
+         return self._decode(prompt, max_tokens, sampling, on_tokens, hit, constraint, stop_eos,
+-                            probabilities=probabilities, points=points)
++                            probabilities=probabilities, points=points, vision=encoded)
+ 
+     def score_labels(self, prompt_ids, label_ids) -> tuple[list[float], float]:
+         """Score the prompt's final row in a fresh state without adding a kept decision prefix."""
+@@ -537,7 +570,9 @@ class FlashNextEngine:
+             request = self._receive()
+             if request is None:
+                 return
+-            prompt, max_tokens, sampling, draft, cached, packed, stop_eos, points = request
++            prompt, max_tokens, sampling, draft, cached, packed, stop_eos = request[:7]
++            # eight fields from a leader without image support, nine with the image description before the points
++            images, points = (None, request[7]) if len(request) == 8 else request[7:9]
+             constraint = None
+             if packed:                                      # the request's grammar, compiled here as on rank 0
+                 from tensorfold.engine import grammar
+@@ -551,9 +586,15 @@ class FlashNextEngine:
+                 if hit is None:
+                     raise RuntimeError(f"rank 1 has no kept state for the {cached} tokens rank 0 resumes from")
+             try:
++                encoded = None
++                if images is not None:                      # rank 0's image features, attached as it attaches them
++                    from .vision_ranks import exchange
++
++                    encoded = exchange(self.comm, 1, len(prompt), images, hidden=int(self.w.cfg.hidden))
+                 if draft:
+-                    self._decode(prompt, max_tokens, sampling, None, hit, constraint, stop_eos, points=points)
++                    self._decode(prompt, max_tokens, sampling, None, hit, constraint, stop_eos, points=points,
++                                 vision=encoded)
+                 else:
+-                    self._serial(prompt, max_tokens, sampling, None, constraint, stop_eos)
++                    self._serial(prompt, max_tokens, sampling, None, constraint, stop_eos, vision=encoded)
+             except ValueError as exc:                       # rank 0 raised at the same point on the same input
+                 print(f"[tensorfold] request {self.served} failed on both ranks: {exc}", flush=True)
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/image_rows.py b/src/tensorfold/families/qwen4_exp/cuda/image_rows.py
 index 73e8278..2f4992c 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/image_rows.py
@@ -631,7 +789,7 @@ index 23bc86a..30b4808 100644
          s.take(new, self._ends(s))
          return [s] if s.done else []
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/multi_tp.py b/src/tensorfold/families/qwen4_exp/cuda/multi_tp.py
-index 5dcc6b9..1ba2492 100644
+index 5dcc6b9..f9c5574 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/multi_tp.py
 +++ b/src/tensorfold/families/qwen4_exp/cuda/multi_tp.py
 @@ -108,7 +108,8 @@ class OutOfStep(RuntimeError):
@@ -664,7 +822,7 @@ index 5dcc6b9..1ba2492 100644
                                    (valid, ready(self, plan)))
          if not valid:
              raise OutOfStep("the agreed prefix is not available on both ranks")
-@@ -180,12 +187,43 @@ class TwoRanks:
+@@ -180,12 +187,30 @@ class TwoRanks:
              if not self.streams and not self.filling:
                  raise ValueError("the prompt cannot fit available memory; shorten it or lower the server context")
              raise NoRoom("the proposed prompt cache growth does not fit on both ranks")
@@ -683,32 +841,19 @@ index 5dcc6b9..1ba2492 100644
 +        before any round collective). Rank 1 attaches them exactly as rank 0 does, so every layer sees identical
 +        hidden states for the image rows; it has no tower of its own."""
 +
-+        from tensorfold.cuda.comm import exchange
-+        from tensorfold.vision.qwen_cuda import EncodedVision
++        from .vision_ranks import exchange
 +
-+        rows, delta, shape = images["rows"], int(images["delta"]), tuple(int(n) for n in images["shape"])
-+        length = len(s.prompt)
-+        if (len(shape) != 2 or shape[0] != len(rows) or shape[1] != int(self.w.cfg.hidden) or not rows
-+                or sorted(set(rows)) != list(rows) or rows[0] < 0 or rows[-1] >= length):
-+            raise OutOfStep("the image rows rank 0 encoded do not fit the prompt it admitted")
-+        device = torch.device("cuda", 0)
-+        if self.link is not None:                   # rank 0: the tensors it encoded, as the follower expects them
-+            encoded = s.vision
-+            features = encoded.features.to(dtype=torch.bfloat16).contiguous()
-+            positions = encoded.positions.to(dtype=torch.int32).contiguous()
-+            if tuple(features.shape) != shape or tuple(positions.shape) != (3, length):
-+                raise OutOfStep("the image features rank 0 encoded do not match what it told rank 1")
-+            exchange(self.w.comm, [features, positions], [features.new_empty((0,)), positions.new_empty((0,))], 1)
-+            return EncodedVision(tuple(rows), features, positions, delta)
-+        features = torch.empty(shape, dtype=torch.bfloat16, device=device)
-+        positions = torch.empty((3, length), dtype=torch.int32, device=device)
-+        exchange(self.w.comm, [features.new_empty((0,)), positions.new_empty((0,))], [features, positions], 0)
-+        return EncodedVision(tuple(rows), features, positions, delta)
++        leader = self.link is not None
++        try:
++            return exchange(self.w.comm, 0 if leader else 1, len(s.prompt), images, s.vision if leader else None,
++                            hidden=int(self.w.cfg.hidden))
++        except ValueError as exc:
++            raise OutOfStep(str(exc)) from exc
 +
      def _prepare_round(self, told):
          from .multi_plan import apply, ready, round_plan
  
-@@ -212,9 +250,10 @@ class TwoRanks:
+@@ -212,9 +237,10 @@ class TwoRanks:
              if op is None or op[0] == "stop":
                  return
              if op[0] == "admit":
@@ -720,6 +865,59 @@ index 5dcc6b9..1ba2492 100644
                  try:
                      self.admit(s, told=plan)
                  except (ValueError, NoRoom, OutOfStep) as exc:
+diff --git a/src/tensorfold/families/qwen4_exp/cuda/vision_ranks.py b/src/tensorfold/families/qwen4_exp/cuda/vision_ranks.py
+new file mode 100644
+index 0000000..5e7c479
+--- /dev/null
++++ b/src/tensorfold/families/qwen4_exp/cuda/vision_ranks.py
+@@ -0,0 +1,47 @@
++"""Image features on two ranks: rank 0 encodes a request's images once, rank 1 receives the same tensors.
++
++Both ranks must feed identical hidden states into their halves of every layer. Text does that by embedding the
++same ids; images only if both ranks hold the same feature rows, so they are computed once and sent, not recomputed.
++``describe`` is what rank 0 tells rank 1 with the request (JSON), ``exchange`` moves the tensors point to point once
++both ranks agreed to serve it. The concurrent decoder (``multi_tp``) and the serial engine (``engine``) share this."""
++
++from __future__ import annotations
++
++import torch
++
++
++def describe(encoded) -> dict | None:
++    """The rows, decode offset and feature shape of an encoded image prompt, as the request message carries them."""
++
++    if encoded is None:
++        return None
++    return {"rows": [int(r) for r in encoded.rows], "delta": int(encoded.rope_delta),
++            "shape": [int(n) for n in encoded.features.shape]}
++
++
++def exchange(comm, rank: int, length: int, images: dict, encoded=None, *, hidden: int):
++    """Rank 0 sends ``encoded``'s bf16 features and int32 positions; rank 1 receives them into tensors of the told shape.
++
++    Both ranks validate the same description against the same prompt length, so a malformed one fails on both."""
++
++    from tensorfold.cuda.comm import exchange as swap
++    from tensorfold.vision.qwen_cuda import EncodedVision
++
++    rows, delta, shape = images["rows"], int(images["delta"]), tuple(int(n) for n in images["shape"])
++    if (len(shape) != 2 or shape[0] != len(rows) or shape[1] != int(hidden) or not rows
++            or sorted(set(rows)) != list(rows) or rows[0] < 0 or rows[-1] >= length):
++        raise ValueError("the image rows rank 0 encoded do not fit the prompt it admitted")
++    if rank == 0:
++        if encoded is None:
++            raise ValueError("rank 0 shares an image prompt it has not encoded")
++        features = encoded.features.to(dtype=torch.bfloat16).contiguous()
++        positions = encoded.positions.to(dtype=torch.int32).contiguous()
++        if tuple(features.shape) != shape or tuple(positions.shape) != (3, length):
++            raise ValueError("the image features rank 0 encoded do not match what it told rank 1")
++        swap(comm, [features, positions], [features.new_empty((0,)), positions.new_empty((0,))], 1)
++        return EncodedVision(tuple(rows), features, positions, delta)
++    device = torch.device("cuda", 0)
++    features = torch.empty(shape, dtype=torch.bfloat16, device=device)
++    positions = torch.empty((3, length), dtype=torch.int32, device=device)
++    swap(comm, [features.new_empty((0,)), positions.new_empty((0,))], [features, positions], 0)
++    return EncodedVision(tuple(rows), features, positions, delta)
 diff --git a/src/tensorfold/server/tools.py b/src/tensorfold/server/tools.py
 index d7042f8..1270fa1 100644
 --- a/src/tensorfold/server/tools.py
@@ -898,10 +1096,10 @@ index 0000000..504d93b
 +    assert cli.build_parser().parse_args(["serve", "m"]).tool_system is None
 diff --git a/tests/test_flashnext_vision_two_ranks_host.py b/tests/test_flashnext_vision_two_ranks_host.py
 new file mode 100644
-index 0000000..3eb303d
+index 0000000..9d14ebf
 --- /dev/null
 +++ b/tests/test_flashnext_vision_two_ranks_host.py
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,269 @@
 +"""Image prompts on two ranks: rank 0 encodes, the admission carries the rows, rank 1 attaches the same features."""
 +
 +import ast
@@ -1074,6 +1272,103 @@ index 0000000..3eb303d
 +    assert round_plan(d)['solo'] is None                           # the graph slot's captures know no image rows
 +    live.st.image_positions = None
 +    assert round_plan(d)['solo'] == 0
++
++
++# --- the serial engine (no --parallel): image prompts on one GPU and on two ranks ---
++
++def test_serial_request_message_carries_the_image_description_and_keeps_no_points():
++    pytest.importorskip('torch')
++    from tensorfold.families.qwen4_exp.cuda.engine import FlashNextEngine
++
++    class Store:
++        def __init__(self):
++            self.kv = {}
++
++        def set(self, key, value):
++            self.kv[key] = value
++
++    e = object.__new__(FlashNextEngine)
++    e.comm, e.served, e.points = SimpleNamespace(store=Store()), 3, lambda prompt: [2, 4]
++    text = e._share([1, 2, 3, 4, 5], 8, None, True, 0)
++    assert text[7] is None and text[-1] == [2, 4] and len(text) == 9    # the points stay the last field
++    images = {'rows': [1, 2], 'delta': -1, 'shape': [2, 2560]}
++    shared = e._share([1, 2, 3, 4, 5], 8, None, True, 0, images=images)
++    assert shared[7] == images and shared[-1] == []           # an image prompt keeps no prompt states
++    assert json.loads(e.comm.store.kv['tensorfold/flashnext/request/3'])['images'] == images
++    assert FlashNextEngine._unpack(json.dumps({'prompt': [1], 'max_tokens': 1, 'draft': True, 'cached': 0,
++                                               'sampling': None}))[7] is None    # an older leader's message
++    follower = object.__new__(FlashNextEngine)
++    follower.served, follower.cache, follower.multi, follower.points = 0, [], None, None
++    requests = iter([([1, 2, 3], 4, None, True, 0, [], True, [2]),                # eight fields: no images
++                     ([1, 2, 3], 4, None, True, 0, [], True, None, [2]), None])    # nine: images before points
++    follower._receive = lambda: next(requests)
++    seen = []
++    follower._decode = lambda *args, **kwargs: seen.append((kwargs['points'], kwargs['vision']))
++    follower.follow()
++    assert seen == [([2], None), ([2], None)] and follower.served == 2
++
++
++def test_describe_and_exchange_validate_the_same_description_on_both_ranks():
++    torch = pytest.importorskip('torch')
++    from tensorfold.families.qwen4_exp.cuda import vision_ranks
++
++    encoded = SimpleNamespace(rows=(1, 2), rope_delta=-1, features=torch.zeros((2, 16)),
++                              positions=torch.zeros((3, 4), dtype=torch.int32))
++    images = vision_ranks.describe(encoded)
++    assert images == {'rows': [1, 2], 'delta': -1, 'shape': [2, 16]} and vision_ranks.describe(None) is None
++    for bad in ({**images, 'rows': [2, 1]}, {**images, 'rows': [1, 4]}, {**images, 'shape': [3, 16]},
++                {**images, 'shape': [2, 8]}):
++        with pytest.raises(ValueError, match='do not fit'):
++            vision_ranks.exchange(None, 1, 4, bad, hidden=16)
++    with pytest.raises(ValueError, match='has not encoded'):
++        vision_ranks.exchange(None, 0, 4, images, None, hidden=16)
++    moved = []
++    comm = SimpleNamespace(rank=0, world=2, exchange=lambda sends, recvs, peer: moved.append((len(sends), peer)))
++    out = vision_ranks.exchange(comm, 0, 4, images, encoded, hidden=16)
++    assert moved == [(2, 1)] and out.rows == (1, 2) and out.rope_delta == -1
++    assert out.features.dtype == torch.bfloat16 and tuple(out.positions.shape) == (3, 4)
++
++
++def test_serial_engine_decodes_an_image_state_eagerly_and_keeps_no_snapshot(monkeypatch):
++    pytest.importorskip('torch')
++    from tensorfold.families.qwen4_exp.cuda import decode, engine as engine_module
++    from tensorfold.families.qwen4_exp.cuda.engine import FlashNextEngine
++
++    calls = []
++    eng = object.__new__(decode.Engine)
++    eng.w, eng.st, eng.buf, eng.mbuf = object(), SimpleNamespace(image_positions=None), object(), object()
++    eng.graphs = SimpleNamespace(forward=lambda tokens: calls.append('graph'),
++                                 mtp_forward=lambda nxt, streams: calls.append('graph-mtp'))
++    monkeypatch.setattr(decode, 'forward', lambda w, st, b, tokens: calls.append('eager'))
++    monkeypatch.setattr(decode, 'mtp_forward', lambda w, st, b, nxt, streams: calls.append('eager-mtp'))
++    eng.forward([1])
++    eng.mtp_forward([1], None)
++    eng.st.image_positions = object()
++    eng.forward([1])
++    eng.mtp_forward([1], None)
++    assert calls == ['graph', 'graph-mtp', 'eager', 'eager-mtp']
++
++    seen = {}
++
++    def prefill(e, prompt, sampling, **kwargs):
++        seen.update(kwargs)
++        return 7
++
++    monkeypatch.setattr(decode, 'prefill', prefill)
++    monkeypatch.setattr(engine_module.time, 'perf_counter', lambda: 0.0)
++    import torch
++    monkeypatch.setattr(torch.cuda, 'synchronize', lambda: None)
++    fe = object.__new__(FlashNextEngine)
++    fe.e, fe.cache, fe.eos, fe.depth, fe.points = SimpleNamespace(kept={'state': 's', 'tail': None}), [([1], {})], (), 3, None
++    kept = ([1], {'state': 'old'})
++    fe.cache = [kept]
++    stats = fe._decode([1, 2, 3], 1, None, lambda new: True, kept, vision=SimpleNamespace(rows=(1,)))
++    assert seen == {'constraint': None, 'probabilities': None, 'vision': seen['vision']}
++    assert fe.cache == [] and stats['cached'] == 0            # from the start, nothing kept, nothing resumed
++    seen.clear()
++    fe.cache = [kept]
++    fe._decode([1, 2, 3], 1, None, lambda new: True, kept)
++    assert 'vision' not in seen and seen['resume'] == {'state': 'old'} and fe.cache[-1][0] == [1, 2]
 diff --git a/tests/test_tool_undeclared_arguments.py b/tests/test_tool_undeclared_arguments.py
 new file mode 100644
 index 0000000..b57691d

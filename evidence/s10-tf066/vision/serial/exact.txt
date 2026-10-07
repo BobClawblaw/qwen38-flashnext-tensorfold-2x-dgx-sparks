@@ -1,0 +1,13 @@
+A. drafted against one token a round
+  q0: drafted 160 tok in 1.9s (prefill 0.18s, 45 rounds) sha 57ea66180e93 | plain 160 tok in 3.2s sha 57ea66180e93 | EQUAL
+  q1: drafted 160 tok in 4.7s (prefill 1.6545s, 60 rounds) sha 7a57a9a56bda | plain 160 tok in 5.8s sha 7a57a9a56bda | EQUAL
+  q2: drafted 86 tok in 4.1s (prefill 1.6206s, 49 rounds) sha ad53a7645bed | plain 86 tok in 4.4s sha ad53a7645bed | EQUAL
+  q3: drafted 86 tok in 3.9s (prefill 1.6312s, 35 rounds) sha 71a7c6b1d883 | plain 86 tok in 4.4s sha 71a7c6b1d883 | EQUAL
+  stats keys: ['accepted', 'cached', 'decode_s', 'decode_tps', 'drafted', 'drafts', 'min_rows', 'prefill_s', 'rounds', 'token_sha']
+B. four image requests together against alone, C. text beside them against text alone
+  q0: together 160 tok in 2.1s (prefill 0.2231s) sha 57ea66180e93 | alone 1.9s | EQUAL
+  q1: together 160 tok in 6.5s (prefill 1.646s) sha 7a57a9a56bda | alone 4.7s | EQUAL
+  q2: together 86 tok in 10.4s (prefill 1.6337s) sha ad53a7645bed | alone 4.1s | EQUAL
+  q3: together 86 tok in 14.1s (prefill 1.6294s) sha 71a7c6b1d883 | alone 3.9s | EQUAL
+  text: beside images 123 tok in 15.5s sha 76000e0dea54 | alone 1.4s sha 76000e0dea54 | EQUAL
+vision_exact: OK

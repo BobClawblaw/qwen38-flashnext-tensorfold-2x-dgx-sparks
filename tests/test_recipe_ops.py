@@ -141,10 +141,10 @@ class GuardTests(unittest.TestCase):
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("not the pinned", proc.stderr)
 
-    def test_vision_needs_the_concurrent_decoder(self) -> None:
-        # the patch serves images on two ranks with --parallel 2 or more; the serial engine has no image rows
-        self.refused("VISION=1 needs PARALLEL=2 or more", VISION="1")
-        self.refused("VISION=1 needs PARALLEL=2 or more", VISION="1", PARALLEL="1", PROFILE="serial")
+    def test_vision_on_either_profile(self) -> None:
+        # patch parts 4 and 5: images on two ranks, on the concurrent decoder and on the serial engine
+        self.accepted(VISION="1")
+        self.accepted(VISION="1", PROFILE="concurrent")
         self.refused("must be 0 or 1", VISION="2")
         self.refused("must be 0 or 1", VISION_URLS="yes")
         self.refused("not empty or a positive decimal integer", VISION_MAX_IMAGES="0")
@@ -230,6 +230,7 @@ class ServeArgsTests(unittest.TestCase):
         r0, r1 = self.argv("0", VISION="1", PARALLEL="4"), self.argv("1", VISION="1", PARALLEL="4")
         self.assertIn("--vision", r0)
         self.assertIn("--vision", r1)                       # both ranks admit the same geometry (rank 1: no tower)
+        self.assertIn("--vision", self.argv("1", VISION="1"))   # the serial profile too (part 5)
         for flag in ("--vision-urls", "--vision-max-images"):
             self.assertNotIn(flag, r0)
             self.assertNotIn(flag, r1)

@@ -1,6 +1,6 @@
 # Scope: image input on two ranks
 
-Status: built on 2026-10-07 as part 4 of `docker/patches/flashnext-tools-0.6.6.patch` (see `docker/patches/README.md`); this note is the scope it was built from. The built patch differs in one point: rank 1 receives the rotary positions with the features (3 x length int32, a few MB at most) instead of rebuilding them. Scoped on 2026-10-07. TensorFold serves Flash Next images on one GPU with `--parallel 2` or more and refuses `--vision` at `--tp 2` (`families/qwen4_exp/cuda/engine.py`, the `vision and (streams < 2 or tp != 1)` check). This note says what a patch needs to lift that, in the style of the recipe's other patch parts.
+Status: built on 2026-10-07 as part 4 of `docker/patches/flashnext-tools-0.6.6.patch`, extended the same day to the serial engine as part 5 (see `docker/patches/README.md`); this note is the scope it was built from. The built patch differs in one point: rank 1 receives the rotary positions with the features (3 x length int32, a few MB at most) instead of rebuilding them. Scoped on 2026-10-07. TensorFold serves Flash Next images on one GPU with `--parallel 2` or more and refuses `--vision` at `--tp 2` (`families/qwen4_exp/cuda/engine.py`, the `vision and (streams < 2 or tp != 1)` check). This note says what a patch needs to lift that, in the style of the recipe's other patch parts.
 
 ## How images work on one GPU today
 

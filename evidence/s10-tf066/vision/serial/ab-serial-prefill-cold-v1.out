@@ -1,0 +1,21 @@
+{"ttft_s": 0.538, "prompt_tokens": 1024, "length": 1024, "rep": 0}
+{"ttft_s": 0.8358, "prompt_tokens": 2048, "length": 2048, "rep": 0}
+{"ttft_s": 0.8504, "prompt_tokens": 2048, "length": 2048, "rep": 1}
+{"ttft_s": 0.8464, "prompt_tokens": 2048, "length": 2048, "rep": 2}
+{"ttft_s": 3.2157, "prompt_tokens": 8192, "length": 8192, "rep": 0}
+{"ttft_s": 3.2183, "prompt_tokens": 8192, "length": 8192, "rep": 1}
+{"ttft_s": 3.2198, "prompt_tokens": 8192, "length": 8192, "rep": 2}
+{"ttft_s": 6.4515, "prompt_tokens": 16382, "length": 16384, "rep": 0}
+{"ttft_s": 6.4169, "prompt_tokens": 16383, "length": 16384, "rep": 1}
+{"ttft_s": 6.4252, "prompt_tokens": 16384, "length": 16384, "rep": 2}
+{"ttft_s": 13.0616, "prompt_tokens": 32768, "length": 32768, "rep": 0}
+{"ttft_s": 13.1102, "prompt_tokens": 32768, "length": 32768, "rep": 1}
+{"ttft_s": 13.0596, "prompt_tokens": 32768, "length": 32768, "rep": 2}
+{"ttft_s": 27.0438, "prompt_tokens": 65536, "length": 65536, "rep": 0}
+{"ttft_s": 27.2595, "prompt_tokens": 65535, "length": 65536, "rep": 1}
+{"ttft_s": 27.3043, "prompt_tokens": 65536, "length": 65536, "rep": 2}
+{"length": 2048, "prompt_tokens": 2048, "ttft_s": 0.846, "tok_s": 2419.7, "ttft_all": [0.8358, 0.8504, 0.8464]}
+{"length": 8192, "prompt_tokens": 8192, "ttft_s": 3.218, "tok_s": 2545.4, "ttft_all": [3.2157, 3.2183, 3.2198]}
+{"length": 16384, "prompt_tokens": 16383, "ttft_s": 6.425, "tok_s": 2549.8, "ttft_all": [6.4515, 6.4169, 6.4252]}
+{"length": 32768, "prompt_tokens": 32768, "ttft_s": 13.062, "tok_s": 2508.7, "ttft_all": [13.0616, 13.1102, 13.0596]}
+{"length": 65536, "prompt_tokens": 65536, "ttft_s": 27.259, "tok_s": 2404.2, "ttft_all": [27.0438, 27.2595, 27.3043]}

@@ -24,7 +24,7 @@ engine:
   commit: &tf_sha cb2ebf0540f42604e2759b2ddef497861e928248
   # sha256 of every shipped patch under docker/patches/ (run.sh PATCH_PINS must match; tests/ check the files).
   patches:
-    flashnext-tools-0.6.6.patch: 678f6fdc734bd757651484b41f2bab7577e852f6a319d0132806eba44ccc41f3
+    flashnext-tools-0.6.6.patch: aff3185afccb3d2b22e85be0e5d8b8650f08a190579c799b9f8a9eb838dd44da
 
 hardware:
   shape: 2x DGX Spark (GB10)
@@ -77,7 +77,7 @@ readme:
   defaults:
     - Engine: "TensorFold `{TF_SHA}` (v0.6.6), built into `{IMAGE}` from `docker/Dockerfile`"
     - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, a tool call keeps only the parameters the offered tool declares, copy drafts, and image input on two ranks (`docker/patches/README.md`)"
-    - Images: "`VISION={VISION}`: off. `VISION=1` with `PROFILE=concurrent` serves `image_url` and `video_url` parts; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4)"
+    - Images: "`VISION={VISION}`: off. `VISION=1` serves `image_url` and `video_url` parts on either profile; the tower loads on rank 0 (0.84 GiB plus a 4 GiB encode workspace), rank 1 receives each request's features; on the serial profile an image request decodes eagerly, text keeps its graphs. `VISION_URLS=1` also fetches public https URLs; `VISION_MAX_IMAGES` caps images per request (engine default 4)"
     - Tool system message: "`{TOOL_SYSTEM}` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none)"
     - Model: "`{MODEL}` at `{SNAPSHOT_SHA}`"
     - Ranks: "`--tp {TP}`: rank 1 on `{WORKER_HOST}` first, then rank 0 (HTTP) on the head; rendezvous `{HEAD_IP}:{MASTER_PORT}`"
