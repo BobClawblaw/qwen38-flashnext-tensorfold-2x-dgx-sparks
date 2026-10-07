@@ -159,7 +159,7 @@ Serial profile (`PARALLEL=1`, part 5), same host session, `VISION=0` then `VISIO
 | Cell | `VISION=0` | `VISION=1` |
 |---|---:|---:|
 | text decode, `tools/bench_openai.py` (fibonacci / chat) | 101.6 / 101.6 tok/s | 100.7 / 99.2 |
-| frozen ruler c=1, prose / structured | 72.3 / 250.2 | 72.1 / 239.0 |
+| frozen ruler c=1, prose / structured | 72.3 / 250.2 | 72.1 / 239.0; on the final build 71.1 / 242.4 (`frozen-c1-final.out`) |
 | cold prompts 2k to 64k, prompt tok/s | 2,413 to 2,534 | 2,420 to 2,550 |
 | the three image probes | 400 (no vision) | same replies and token shas as the concurrent profile; the photo prompt passes in 1.6 s |
 | drafted against plain, four image requests against alone, text beside them | | all equal |
