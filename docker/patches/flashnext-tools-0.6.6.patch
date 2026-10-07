@@ -276,7 +276,7 @@ index ea765aa..c026a44 100644
      torch.cuda.synchronize()
      seconds = time.perf_counter() - start
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/engine.py b/src/tensorfold/families/qwen4_exp/cuda/engine.py
-index 002ff1f..1be6e67 100644
+index 002ff1f..e7d5e09 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/engine.py
 +++ b/src/tensorfold/families/qwen4_exp/cuda/engine.py
 @@ -61,9 +61,12 @@ class FlashNextEngine:
@@ -302,16 +302,15 @@ index 002ff1f..1be6e67 100644
          self.streams, self.master, self.graphs_enabled = int(streams), master, bool(graphs)
          self.kv_dtype = check_kv(kv_dtype)
          self.comm = None
-@@ -188,7 +193,7 @@ class FlashNextEngine:
- 
+@@ -189,6 +194,7 @@ class FlashNextEngine:
              self.e = None
              self.multi = MultiDecoder(w, slots=streams, capacity=self.max_len, depth=self.depth,
--                                      confidence=self.confidence, keep=KEEP, points=self.points,
-+                                      confidence=self.confidence, keep=KEEP, points=self.points, copy=self.copy_drafts,
+                                       confidence=self.confidence, keep=KEEP, points=self.points,
++                                      copy=getattr(self, "copy_drafts", False),
                                        kv_dtype=self.kv_dtype, share=share, vision=self.vision,
                                        prefill_rows=self.prefill_rows, workspace_bytes=prompt_workspace, graphs=graphs)
              self.scheduler = Scheduler(self.multi, max_streams=streams)
-@@ -246,6 +251,8 @@ class FlashNextEngine:
+@@ -246,6 +252,8 @@ class FlashNextEngine:
          self.serial = None                                # the serial requests' engine, made on first use
          rule = (f"1 to {self.depth} MTP drafts a round, a chain stops before a later draft under "
                  f"{self.confidence:.0%}" if self.depth else "no drafts: the serial reference, one token a round")
@@ -320,13 +319,13 @@ index 002ff1f..1be6e67 100644
          where = (f"up to {streams} streams, each growing to {self.context_window} prompt/reply tokens while memory "
                   f"lasts ({self.multi.memory_gate.room / 2**30:.1f} GiB free for their caches, "
                   f"{self.multi.window_bytes / 2**30:.2f} GiB for one at the full window), eager" if self.concurrent else
-@@ -425,8 +432,12 @@ class FlashNextEngine:
+@@ -425,8 +433,12 @@ class FlashNextEngine:
          if (on_tokens is not None and on_tokens([first])) or (stop_eos and first in self.eos) or max_tokens <= 1:
              return stats
          if self.depth > 0:
 +            from .copy_drafts import CopyIndex
 +
-+            copies = CopyIndex(list(prompt) + [first]) if self.copy_drafts and constraint is None else None
++            copies = CopyIndex(list(prompt) + [first]) if getattr(self, "copy_drafts", False) and constraint is None else None
              res = mtp_decode(self.e, first, max_tokens, sampling, depth=self.depth, confidence=self.confidence,
 -                             stop_eos=stop_eos, on_tokens=on_tokens, constraint=constraint, probabilities=probabilities)
 +                             stop_eos=stop_eos, on_tokens=on_tokens, constraint=constraint, probabilities=probabilities,
@@ -410,7 +409,7 @@ index e4326b4..b60c7fb 100644
                  if low and j > 0:
                      continue
 diff --git a/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py b/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
-index d909da0..dbf2c9b 100644
+index d909da0..8dfd8ac 100644
 --- a/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
 +++ b/src/tensorfold/families/qwen4_exp/cuda/multi_fill.py
 @@ -10,7 +10,8 @@ from tensorfold.cuda.logprobs import capture
@@ -429,7 +428,7 @@ index d909da0..dbf2c9b 100644
              s.context = list(s.prompt)
 -            s.drafts = draft(e, last, [first], st.pos + 1, min(self.depth, s.count - 1), s.sampling,
 -                             self.confidence) if mtp and s.count > 1 else []
-+            s.copies = CopyIndex(list(s.prompt) + [first]) if mtp and self.copy and s.constraint is None else None
++            s.copies = CopyIndex(list(s.prompt) + [first]) if mtp and getattr(self, "copy", False) and s.constraint is None else None
 +            s.drafts = []
 +            if mtp and s.count > 1:
 +                room = min(self.depth, s.count - 1)

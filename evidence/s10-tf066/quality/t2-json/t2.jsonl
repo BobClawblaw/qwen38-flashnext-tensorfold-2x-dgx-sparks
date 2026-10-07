@@ -1,0 +1,30 @@
+{"task": "json", "id": "j00.person", "correct": 1, "errors": [], "content": "{\n  \"name\": \"Ana Silva\",\n  \"age\": 34,\n  \"email\": \"ana@example.com\",\n  \"languages\": [\n    \"Portuguese\",\n    \"English\"\n  ]\n}"}
+{"task": "json", "id": "j01.person", "correct": 1, "errors": [], "content": "{\n  \"name\": \"Kenji Mori\",\n  \"age\": 58,\n  \"email\": \"kenji.mori@example.jp\",\n  \"languages\": [\n    \"Japanese\"\n  ]\n}"}
+{"task": "json", "id": "j02.person", "correct": 1, "errors": [], "content": "{\n  \"name\": \"Liam O'Brien\",\n  \"age\": 27,\n  \"email\": \"liam@example.ie\",\n  \"languages\": [\n    \"English\",\n    \"Irish\",\n    \"French\"\n  ]\n}"}
+{"task": "json", "id": "j03.person", "correct": 1, "errors": [], "content": "{\n  \"name\": \"Fatima Zahra\",\n  \"age\": 41,\n  \"email\": \"fz@example.ma\",\n  \"languages\": [\n    \"Arabic\",\n    \"French\",\n    \"Spanish\"\n  ]\n}"}
+{"task": "json", "id": "j04.person", "correct": 1, "errors": [], "content": "{\n  \"name\": \"Tomasz Nowak\",\n  \"age\": 19,\n  \"email\": \"tn@example.pl\",\n  \"languages\": [\n    \"Polish\"\n  ]\n}"}
+{"task": "json", "id": "j05.order", "correct": 1, "errors": [], "content": "{\n  \"order_id\": \"A-1001\",\n  \"items\": [\n    {\n      \"sku\": \"PEN-01\",\n      \"qty\": 2\n    },\n    {\n      \"sku\": \"INK-09\",\n      \"qty\": 1\n    }\n  ],\n  \"total\": 14.50,\n  \"paid\": true\n}"}
+{"task": "json", "id": "j06.order", "correct": 1, "errors": [], "content": "{\n  \"order_id\": \"B-77\",\n  \"items\": [\n    {\n      \"sku\": \"CUP-3\",\n      \"qty\": 5\n    }\n  ],\n  \"total\": 42,\n  \"paid\": false\n}"}
+{"task": "json", "id": "j07.order", "correct": 1, "errors": [], "content": "{\n  \"order_id\": \"Z9\",\n  \"items\": [\n    {\n      \"sku\": \"BAG-2\",\n      \"qty\": 1\n    },\n    {\n      \"sku\": \"TAG-8\",\n      \"qty\": 10\n    }\n  ],\n  \"total\": 88.2,\n  \"paid\": true\n}"}
+{"task": "json", "id": "j08.order", "correct": 1, "errors": [], "content": "{\n  \"order_id\": \"2026-555\",\n  \"items\": [\n    {\n      \"sku\": \"LAMP-7\",\n      \"qty\": 3\n    }\n  ],\n  \"total\": 129.99,\n  \"paid\": false\n}"}
+{"task": "json", "id": "j09.order", "correct": 1, "errors": [], "content": "{\n  \"order_id\": \"Q-1\",\n  \"items\": [\n    {\n      \"sku\": \"KEY-1\",\n      \"qty\": 4\n    },\n    {\n      \"sku\": \"KEY-2\",\n      \"qty\": 4\n    }\n  ],\n  \"total\": 20,\n  \"paid\": true\n}"}
+{"task": "json", "id": "j10.event", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Team retro\",\n  \"date\": \"2026-11-03\",\n  \"attendees\": 8,\n  \"online\": true\n}"}
+{"task": "json", "id": "j11.event", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Annual Gala\",\n  \"date\": \"2027-02-14\",\n  \"attendees\": 250,\n  \"online\": false\n}"}
+{"task": "json", "id": "j12.event", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Intro to Rust\",\n  \"date\": \"2026-10-21\",\n  \"attendees\": 30,\n  \"online\": true\n}"}
+{"task": "json", "id": "j13.event", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Board meeting\",\n  \"date\": \"2026-12-01\",\n  \"attendees\": 9,\n  \"online\": false\n}"}
+{"task": "json", "id": "j14.event", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Hackathon kickoff\",\n  \"date\": \"2027-01-09\",\n  \"attendees\": 120,\n  \"online\": false\n}"}
+{"task": "json", "id": "j15.weather", "correct": 1, "errors": [], "content": "{\n  \"city\": \"Lisbon\",\n  \"temp_c\": 21.5,\n  \"conditions\": \"sunny\"\n}"}
+{"task": "json", "id": "j16.weather", "correct": 1, "errors": [], "content": "{\n  \"city\": \"Oslo\",\n  \"temp_c\": -4,\n  \"conditions\": \"snow\"\n}"}
+{"task": "json", "id": "j17.weather", "correct": 1, "errors": [], "content": "{\n  \"city\": \"Wellington\",\n  \"temp_c\": 13,\n  \"conditions\": \"cloudy\"\n}"}
+{"task": "json", "id": "j18.weather", "correct": 1, "errors": [], "content": "{\n  \"city\": \"Mumbai\",\n  \"temp_c\": 29,\n  \"conditions\": \"rain\"\n}"}
+{"task": "json", "id": "j19.weather", "correct": 1, "errors": [], "content": "{\n  \"city\": \"Cairo\",\n  \"temp_c\": 35,\n  \"conditions\": \"sunny\"\n}"}
+{"task": "json", "id": "j20.book", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Dune\",\n  \"author\": \"Frank Herbert\",\n  \"year\": 1965,\n  \"genres\": [\n    \"science fiction\",\n    \"adventure\"\n  ]\n}"}
+{"task": "json", "id": "j21.book", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Pride and Prejudice\",\n  \"author\": \"Jane Austen\",\n  \"year\": 1813,\n  \"genres\": [\n    \"romance\",\n    \"satire\"\n  ]\n}"}
+{"task": "json", "id": "j22.book", "correct": 1, "errors": [], "content": "{\n  \"title\": \"The Hobbit\",\n  \"author\": \"J. R. R. Tolkien\",\n  \"year\": 1937,\n  \"genres\": [\n    \"Fantasy\",\n    \"Children's literature\"\n  ]\n}"}
+{"task": "json", "id": "j23.book", "correct": 1, "errors": [], "content": "{\n  \"title\": \"One Hundred Years of Solitude\",\n  \"author\": \"Gabriel Garcia Marquez\",\n  \"year\": 1967,\n  \"genres\": [\n    \"magical realism\"\n  ]\n}"}
+{"task": "json", "id": "j24.book", "correct": 1, "errors": [], "content": "{\n  \"title\": \"Neuromancer\",\n  \"author\": \"William Gibson\",\n  \"year\": 1984,\n  \"genres\": [\n    \"cyberpunk\",\n    \"science fiction\"\n  ]\n}"}
+{"task": "json", "id": "j25.sentiment", "correct": 1, "errors": [], "content": "{\n  \"label\": \"positive\",\n  \"confidence\": 0.98\n}"}
+{"task": "json", "id": "j26.sentiment", "correct": 1, "errors": [], "content": "{\n  \"label\": \"negative\",\n  \"confidence\": 0.95\n}"}
+{"task": "json", "id": "j27.sentiment", "correct": 1, "errors": [], "content": "{\n  \"label\": \"neutral\",\n  \"confidence\": 0.95\n}"}
+{"task": "json", "id": "j28.sentiment", "correct": 1, "errors": [], "content": "{\n  \"label\": \"neutral\",\n  \"confidence\": 0.95\n}"}
+{"task": "json", "id": "j29.sentiment", "correct": 1, "errors": [], "content": "{\n  \"label\": \"negative\",\n  \"confidence\": 0.98\n}"}

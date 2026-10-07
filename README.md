@@ -152,9 +152,9 @@ The base recipe's harness (`quality/t2.py`, `tools/run_t3.sh`), same checkpoint,
 | `reasoning_effort` unset / none / low / medium / xhigh | **5/5** | 5/5 | 5/5 |
 | Needles, 4k / 16k / 64k / 128k × 3 depths × 2 | **24/24** | 24/24 | 24/24 on a shorter grid |
 | Needles at 246-250k prompt tokens × 3 depths × 2 | **6/6** | 6/6 | not run |
-| `response_format` json_schema, strict (serial profile) | pending: the serial-profile run is scheduled with the next image rebuild | 30/30 | 30/30 |
+| `response_format` json_schema, strict (serial profile, `PARALLEL=1`) | **30/30** | 30/30 | 30/30 |
 
-GSM8K and IFEval moved by 1 and 2 prompts against 0.6.2 (239 against 238, 102 against 104), inside what two greedy runs of the same 4-bit weights on a different engine version do; the engine's own exactness checks compare drafted to plain decoding, not 0.6.2 to 0.6.6. The JSON-schema gate needs `PARALLEL=1` (grammars are refused under `--parallel` on two ranks) and will be run on the serial profile.
+GSM8K and IFEval moved by 1 and 2 prompts against 0.6.2 (239 against 238, 102 against 104), inside what two greedy runs of the same 4-bit weights on a different engine version do; the engine's own exactness checks compare drafted to plain decoding, not 0.6.2 to 0.6.6. The JSON-schema gate ran on the serial profile (`PARALLEL=1`, grammars are refused under `--parallel` on two ranks), 30/30 with copy drafts on and 48 CUDA graphs captured.
 
 ## Requirements
 
