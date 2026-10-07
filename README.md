@@ -202,6 +202,26 @@ The base recipe's harness (`quality/t2.py`, `tools/run_t3.sh`), same checkpoint,
 
 GSM8K and IFEval moved by 1 and 2 prompts against 0.6.2 (239 against 238, 102 against 104), inside what two greedy runs of the same 4-bit weights on a different engine version do; the engine's own exactness checks compare drafted to plain decoding, not 0.6.2 to 0.6.6. The JSON-schema gate ran on the serial profile (`PARALLEL=1`, grammars are refused under `--parallel` on two ranks), 30/30 with copy drafts on and 48 CUDA graphs captured.
 
+### Against the other published Qwen3.8-Flash-Next recipes
+
+Every public recipe for this checkpoint that reports a number, as of 2026-10-07; their figures are their own README's or forum post's, ours are the frozen ruler on this pair. Quantizations differ (MLX 4-bit here and in the other TensorFold recipes, NVFP4, FP8, int4, EXL3 elsewhere), so this is a comparison of served recipes, not of engines on equal weights.
+
+| Recipe | Sparks | Engine | One user, prose tok/s | Concurrency, aggregate tok/s |
+|---|---:|---|---:|---|
+| this recipe, `PROFILE=serial` | 2 | TensorFold 0.6.6 | **71-73** (structured 242-250) | one stream |
+| this recipe, `PROFILE=concurrent` with vision | 2 | TensorFold 0.6.6 | **67** (structured 242) | 4 / 8 / 16 users: 280-330 / 460-520 / 650-715 |
+| [sfxnz base recipe](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) | 2 | TensorFold 0.6.2 | 69.6 (structured 249.5) | 4 / 8 users: 162-323 / 228-520 (chat / code) |
+| [Mia's AI Lab, TensorFold](https://github.com/MiaAI-Lab/Qwen3.8-Flash-Next-Single-DGX-Spark-TensorFold) | 1 | TensorFold 0.6.1 | 63.6 (code 96.9) | 4 users: 114-166 |
+| [ykmran AutoRound int4](https://forums.developer.nvidia.com/t/which-single-spark-qwen3-8-flash-next-thread-is-the-best/382522) | 1 | vLLM | 47.5 code, 60 JSON | not reported |
+| official NVFP4, [blazux](https://github.com/blazux/qwen3.8-Flash-DGX), SGLang | 1 | vLLM, SGLang | 43-44 | not reported |
+| [pocharlies](https://huggingface.co/pocharlies/Qwen3.8-Flash-Next), weschera, NVFP4 | 2 | SGLang | 41-42 | 8 users: 153 |
+| [ai-muninn NVFP4](https://ai-muninn.com/en/blog/qwen38-flash-next-nvfp4-dgx-spark-vllm-recipe) | 1 | vLLM | 41.7 | not reported |
+| [FP8 on two Sparks](https://forums.developer.nvidia.com/t/fp8-qwen3-8-flash-next-on-2x-dgx-spark-via-sglang-37-40-tok-s/382435) | 2 | SGLang | 36-41 | 4 users: 88-99 |
+| [Mia's AI Lab, NVFP4](https://forums.developer.nvidia.com/t/miaai-lab-new-qwen3-8-flash-next-nvfp4-recipe-for-1x-dgx-spark-1m-context-vision-video-37-tok-s-c1/382446) (1M context, vision) | 1 | vLLM | 37 | not reported |
+| [EXL3](https://github.com/vcruz305/Qwen3.8-Flash-Next-EXL3-SGLang-DGX-Spark-recipe) | 1 | SGLang | 22-31 | not reported |
+
+Where this recipe does not lead: code at one user is a tie with the other TensorFold recipes (100-102 tok/s here on the serial profile, 96.9 and 105-130 there), and the base recipe's structured ruler on 0.6.2 (249.5) is a few tok/s ahead of the concurrent profile's. Upstream TensorFold publishes no Flash Next numbers for Sparks itself. The newest non-TensorFold figures found date from early September 2026.
+
 ## Requirements
 
 - Two DGX Sparks on the QSFP RoCE link (this cluster: `10.0.0.20` head, `10.0.0.30` worker; stock NVIDIA images use `10.100.8.1` / `10.100.8.2`)
