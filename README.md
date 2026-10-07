@@ -1,10 +1,10 @@
 # Qwen3.8-Flash-Next · TensorFold 0.6.6 · 2× DGX Spark
 
-Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) across two NVIDIA DGX Spark (GB10, 128 GB) nodes at tensor-parallel 2 with the [TensorFold](https://github.com/ashhart/TensorFold) engine: eight concurrent streams, the full 262,144-token window on both ranks, MTP speculative decoding (15 drafts at confidence 0.70), int8 KV cache, an OpenAI-compatible API, and a systemd unit that brings the pair up at boot.
+Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP) across two NVIDIA DGX Spark (GB10, 128 GB) nodes at tensor-parallel 2 with the [TensorFold](https://github.com/ashhart/TensorFold) engine: sixteen concurrent streams, the full 262,144-token window on both ranks, MTP speculative decoding (15 drafts at confidence 0.70), int8 KV cache, an OpenAI-compatible API, and a systemd unit that brings the pair up at boot.
 
 This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
-- **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PARALLEL=8` (or `PROFILE=concurrent`) for eight streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
+- **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PROFILE=concurrent` (`PARALLEL=16`) for sixteen streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
 - **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
@@ -14,7 +14,7 @@ Qwen3.8-Flash-Next is a ~180B MoE (512 experts, top-10) with Gated DeltaNet, spa
 
 TensorFold runs inside `nvcr.io/nvidia/pytorch:26.07-py3` (digest-pinned), built locally from [`docker/Dockerfile`](docker/Dockerfile). Its kernels JIT-compile for sm_121 on the first start of each engine commit and are cached on the host after that. Rank 1 runs on the worker, rank 0 serves HTTP on the head; partials are all-gathered over NCCL on the QSFP RoCE link.
 
-## Measured on this pair (TensorFold 0.6.6, eight streams, int8 KV)
+## Measured on this pair (TensorFold 0.6.6, concurrent profile, int8 KV)
 
 `python3 bench_decode.py`, byte-identical to the vLLM sibling's frozen ruler (sha256 `6a9c64bd…`). Receipts: [`evidence/s10-tf066/`](evidence/s10-tf066/). The base recipe's tables (0.6.2, bf16 KV, one stream at a time) are in its README and under `evidence/s1-…s9-…`; its numbers are not repeated here.
 
@@ -57,7 +57,7 @@ Same image, same boot. `PARALLEL=1` (the serial engine, 48 CUDA graphs) against 
 | chat, 512 tokens | 78 | **97** |
 | count 1 to 400 | 166 | **226** |
 
-The concurrent decoder pays a per-prompt warm-up, so repeated prompts look close to the serial engine and real traffic (a new prompt every time) does not: 27-43% slower. If the pair serves one client at a time, set `PARALLEL=1` in `.env.cluster` (it also serves `response_format`). Keep `PROFILE=concurrent` when several clients share it: at four users it still aggregates 260-330 tok/s.
+The concurrent decoder pays a per-prompt warm-up, so repeated prompts look close to the serial engine and real traffic (a new prompt every time) does not: 27-43% slower. If the pair serves one client at a time, set `PARALLEL=1` in `.env.cluster` (it also serves `response_format`). Keep `PROFILE=concurrent` when several clients share it: 260-330 tok/s aggregate at four users, 650-715 at sixteen.
 
 ### Replies of 512 and 1024 tokens, 1 to 4 users
 
@@ -70,6 +70,17 @@ The cells an agent workload actually looks like. `tools/vendor/bench_concurrent.
 | 1024 | code | 86 | 155 (78) | 260 (65) |
 | 1024 | chat | 99 | 180 (90) | 301 (75) |
 
+At `PARALLEL=16` (now the concurrent profile's default), same ruler, 512-token replies, 2 reps, every reply byte-equal to its solo run ([`parallel-16/`](evidence/s10-tf066/parallel-16/)):
+
+| Users | code, aggregate (per stream) | chat, aggregate (per stream) | slowest first token |
+|---:|---:|---:|---:|
+| 1 | 107 | 89 | 0.06 s |
+| 4 | 331 (83) | 280 (70) | 0.08 s |
+| 8 | 523 (66) | 459 (58) | 0.13 s |
+| 16 | 714 (45) | 653 (41) | 0.24 s |
+
+Memory after the 16-user cells: 35 GiB available on the head, 38 GiB on the worker. The engine has no stream cap; `--parallel` is a number and the memory gate admits streams while their caches fit (2.74 GiB each at the full window with int8 KV). The 8-user numbers vary by boot: 319 / 439 on one restart, 523 / 459 on this one, the base recipe's 520 / 425 on 0.6.2.
+
 The same with a 1,000-token system prompt in front (`tools/bench_longctx_concurrent.py --prompt-tokens 1000 --tokens 1024`, distinct prompts per stream, steady aggregate while every stream decodes):
 
 | Workload | 1 user | 2 users | 4 users |
@@ -77,7 +88,7 @@ The same with a 1,000-token system prompt in front (`tools/bench_longctx_concurr
 | code (LRU cache module + tests, ends at EOS) | 128 | 188 | 267 |
 | prose (400-word story) | 75 | 107 | 163 |
 
-Slowest first token in any cell: 0.1 s. Four users on 512-token replies reach 280-330 tok/s aggregate, so the low end of the eight-user figure is available at concurrency 4. Code slows from 512 to 1024 tokens while chat does not: the second half of the code reply is the test file, which drafts worse than the class it tests.
+Slowest first token in any cell: 0.1 s. Four users on 512-token replies reach 280-330 tok/s aggregate. Code slows from 512 to 1024 tokens while chat does not: the second half of the code reply is the test file, which drafts worse than the class it tests.
 
 ### Four streams at 250k tokens each (1M tokens live on the pair)
 
@@ -90,7 +101,7 @@ Slowest first token in any cell: 0.1 s. Four users on 512-token replies reach 28
 | warm: the same prompts cached, code | 1.6 s each | 52 tok/s (99 rounds for 512 tokens) | **209 tok/s** |
 | reference: four streams at 8k, prose | | | 154 tok/s |
 
-Memory is not the limit: with four full windows live the head still had 21 GiB available. Time is. A round with four streams attending over 250k tokens each costs about 100-130 ms against 61 ms at short context, and tokens per round stay what the text allows (2 for prose, 5 for code). Eight short-prompt streams reach 319-439 tok/s; four streams at 1M of context reach 116-209.
+Memory is not the limit: with four full windows live the head still had 21 GiB available. Time is. A round with four streams attending over 250k tokens each costs about 100-130 ms against 61 ms at short context, and tokens per round stay what the text allows (2 for prose, 5 for code). Eight short-prompt streams reach 320-520 tok/s and sixteen 650-715; four streams at 1M of context reach 116-209.
 
 Two behaviours to plan around:
 
@@ -186,7 +197,7 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 | `--context` | 262144 (the native window, on both ranks) |
 | `--kv-dtype` | `bf16` |
 | MTP drafts | `--mtp-drafts 15 --mtp-confidence 0.70` |
-| `--parallel` | 1 by default; `PROFILE=concurrent` (or `PARALLEL=8`) serves eight streams on two ranks (TensorFold 0.6.4+) |
+| `--parallel` | 1 by default; `PROFILE=concurrent` (or `PARALLEL=16`) serves sixteen streams on two ranks (TensorFold 0.6.4+) |
 | Default thinking | off (`THINKING=0`); requests override with `chat_template_kwargs.enable_thinking` |
 | `--max-tokens` | 32768 (the reply cap when a request sets none) |
 | NCCL | `NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1`, `NCCL_SOCKET_IFNAME=enp1s0f1np1` |

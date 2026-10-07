@@ -80,7 +80,7 @@ readme:
     - "`--context`": "{CONTEXT} (the native window, on both ranks)"
     - "`--kv-dtype`": "`{KV_DTYPE}`"
     - MTP drafts: "`--mtp-drafts {MTP_DRAFTS} --mtp-confidence {MTP_CONFIDENCE}`"
-    - "`--parallel`": "{PARALLEL} by default; `PROFILE=concurrent` (or `PARALLEL=8`) serves eight streams on two ranks (TensorFold 0.6.4+)"
+    - "`--parallel`": "{PARALLEL} by default; `PROFILE=concurrent` (or `PARALLEL=16`) serves sixteen streams on two ranks (TensorFold 0.6.4+)"
     - Default thinking: "off (`THINKING={THINKING}`); requests override with `chat_template_kwargs.enable_thinking`"
     - "`--max-tokens`": "{MAX_TOKENS} (the reply cap when a request sets none)"
     - NCCL: "`NCCL_IB_HCA={HCA}`, `NCCL_SOCKET_IFNAME={IFACE}`"

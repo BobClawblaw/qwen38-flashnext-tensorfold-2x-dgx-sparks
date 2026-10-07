@@ -97,7 +97,7 @@ class GuardTests(unittest.TestCase):
     def test_concurrent_profile_fills_unset_variables_only(self) -> None:
         out = self.accepted(PROFILE="concurrent").stdout
         for want in ("profile=concurrent", "image=tf-qwen38-flashnext:0.6.6", "patch=patches/flashnext-tools-0.6.6.patch",
-                     "parallel=8", "mtp=15@"):
+                     "parallel=16", "mtp=15@"):
             self.assertIn(want, out)
         out = self.accepted(PROFILE="concurrent", PARALLEL="4", MTP_DRAFTS="6").stdout
         self.assertIn("parallel=4", out)

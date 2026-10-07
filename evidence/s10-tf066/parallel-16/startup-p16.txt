@@ -1,0 +1,1 @@
+up to 16 streams, each growing to 262144 prompt/reply tokens while memory lasts (55.8 GiB free for their caches, 2.74 GiB for one at the full window), eager

@@ -22,8 +22,9 @@ PROFILE="${PROFILE:-serial}"
 case "$PROFILE" in
   serial) ;;
   concurrent)
-    # Eight streams on two ranks. TensorFold 0.6.4+ serves --parallel at --tp 2 natively; the image is the same.
-    PARALLEL="${PARALLEL:-8}"
+    # Sixteen streams on two ranks (measured: 1-8 users unchanged against PARALLEL=8, 16 users 650-715 tok/s
+    # aggregate, evidence/s10-tf066/parallel-16). TensorFold 0.6.4+ serves --parallel at --tp 2 natively.
+    PARALLEL="${PARALLEL:-16}"
     ;;
   *) echo "PROFILE=$PROFILE must be serial or concurrent." >&2; exit 1 ;;
 esac
