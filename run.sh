@@ -33,7 +33,7 @@ MODEL="${MODEL:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
 SERVED_NAME="${SERVED_NAME:-TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP}"
 IMAGE="${IMAGE:-tf-qwen38-flashnext:0.6.6}"
 TF_SHA="${TF_SHA:-cb2ebf0540f42604e2759b2ddef497861e928248}"
-TF_PATCH="${TF_PATCH:-patches/undeclared-tool-args-0.6.6.patch}"
+TF_PATCH="${TF_PATCH:-patches/flashnext-tools-0.6.6.patch}"
 CONTAINER_NAME="${CONTAINER_NAME:-tf-qwen38-flashnext}"
 PORT="${PORT:-8000}"
 MASTER_PORT="${MASTER_PORT:-29551}"
@@ -49,6 +49,7 @@ MTP_CONFIDENCE="${MTP_CONFIDENCE:-0.70}"
 PARALLEL="${PARALLEL:-1}"
 THINKING="${THINKING:-0}"
 MAX_TOKENS="${MAX_TOKENS:-4096}"
+TOOL_SYSTEM="${TOOL_SYSTEM:-Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.}"
 MEMORY_RESERVE_GIB="${MEMORY_RESERVE_GIB:-}"
 HF_CACHE="${HF_CACHE:-$HOME/.cache/huggingface}"
 HF_HOME_IN_CONTAINER="/cache/huggingface"
@@ -76,7 +77,7 @@ MAX_MTP_DRAFTS=15
 # sha256 of every shipped patch, the bytes the published numbers were measured with (recipe.yaml
 # engine.patches; tests/ checks the files). A regenerated patch needs a new pin and new evidence.
 declare -A PATCH_PINS=(
-  [patches/undeclared-tool-args-0.6.6.patch]=67c066c083da08786e9f4fac25e15cb8b4512f507ba3be40336999067f437c69
+  [patches/flashnext-tools-0.6.6.patch]=21965516eee351b4ce9de8a37ce49c02396a66eb2a4c19a6670eff622bc12e3f
 )
 
 die() {
@@ -139,7 +140,7 @@ done
 # --- EXTRA_ARGS must not re-set a flag run.sh builds; argparse keeps the last value, so a duplicate
 # would bypass the guard on its variable or desynchronise the two ranks. TensorFold's parser expands
 # unambiguous prefixes (--paral means --parallel), so any prefix of a guarded flag is refused too.
-OWNED_FLAGS="--tp --rank --master --master-port --host --port --name --context --kv-dtype --mtp-drafts --mtp-confidence --parallel --thinking --no-thinking --max-tokens --no-update-check --no-drafts"
+OWNED_FLAGS="--tp --rank --master --master-port --host --port --name --context --kv-dtype --mtp-drafts --mtp-confidence --parallel --thinking --no-thinking --max-tokens --no-update-check --no-drafts --tool-system"
 VISION_FLAGS="--vision --vision-urls --vision-max-images"
 UNUSED_FLAGS="--prefill-fp8 --drafter --ple-on-ssd --ssd-experts"
 for w in $EXTRA_ARGS; do
@@ -353,6 +354,8 @@ serve_args() {
   if [[ "$rank" == 0 ]]; then
     args+=(--name "$SERVED_NAME" --host "$API_HOST" --port "$PORT" --max-tokens "$MAX_TOKENS")
     if [[ "$THINKING" == 1 ]]; then args+=(--thinking); else args+=(--no-thinking); fi
+    # --tool-system (patch): the server's instruction for tool requests that carry no system message; empty = none
+    [[ -n "$TOOL_SYSTEM" ]] && args+=(--tool-system "$TOOL_SYSTEM")
   fi
   printf '%s\n' "${args[@]}"
 }
@@ -414,7 +417,7 @@ FORWARD_VARS=(
   MODEL SERVED_NAME IMAGE TF_SHA TF_PATCH CONTAINER_NAME PORT MASTER_PORT HEAD_IP IFACE HCA TP CONTEXT KV_DTYPE
   TF_PATCH_SHA MTP_DRAFTS MTP_CONFIDENCE PARALLEL THINKING MAX_TOKENS MEMORY_RESERVE_GIB HF_CACHE SNAPSHOT_SHA
   SKIP_DOWNLOAD HF_HUB_DISABLE_XET TF_CACHE OOM_SCORE_ADJ MEMGUARD MEMGUARD_MIN_AVAIL_MB
-  MEMGUARD_MIN_SWAP_FREE_MB BENCH_ONLY EXTRA_ARGS EXTRA_ENV
+  MEMGUARD_MIN_SWAP_FREE_MB BENCH_ONLY EXTRA_ARGS EXTRA_ENV TOOL_SYSTEM
 )
 
 worker_env() {

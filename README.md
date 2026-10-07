@@ -5,7 +5,7 @@ Serve [TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP](https://huggingface.co/Tensor
 This is a fork of [sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark](https://github.com/sfxnz/Qwen3.8-Flash-Next-TensorFold-2x-DGX-Spark) (MIT), whose guards, harness and evidence it keeps. What this fork changes:
 
 - **TensorFold 0.6.6** (`cb2ebf0`) instead of 0.6.2. Upstream 0.6.4 merged two-rank `--parallel`, so the base recipe's `pr141-on-0.6.2.patch` and its second image are gone: one image, `PARALLEL=8` (or `PROFILE=concurrent`) for eight streams. 0.6.3 to 0.6.6 also bring a 5-17% faster Flash Next chain kernel, `TENSORFOLD_PREFILL_ROWS`, API keys (`--api-key`), the Anthropic Messages API, `/health` with live decode and prefill speed, and `--name-priority`.
-- **One patch, baked into the image:** [`docker/patches/undeclared-tool-args-0.6.6.patch`](docker/patches/undeclared-tool-args-0.6.6.patch). A Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer, so streamed and non-streamed arguments agree. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
+- **One patch, baked into the image:** [`docker/patches/flashnext-tools-0.6.6.patch`](docker/patches/flashnext-tools-0.6.6.patch). Two things. `--tool-system TEXT` on the CUDA server: a system instruction added to a chat request that offers tools and carries no system message of its own (a client's own system prompt wins; text requests are untouched). The recipe's default text takes the 60-call tool harness from 56 to 60 (Quality below). And a Qwen XML tool call keeps only the parameters the offered tool declares, on the end parser, the CUDA reply parser and the streamer. Provenance and scope: [`docker/patches/README.md`](docker/patches/README.md).
 - **`.env.cluster`** next to `run.sh` holds the cluster's addresses and knobs (environment wins over the file). The shipped defaults in `recipe.yaml` stay generic.
 - **systemd:** [`qwen38-tensorfold.service`](qwen38-tensorfold.service) + [`start-systemd.sh`](start-systemd.sh), `Type=oneshot` with `RemainAfterExit`.
 - **int8 KV cache and one RoCE HCA** (`KV_DTYPE=int8`, `HCA=rocep1s0f1`) in this cluster's `.env.cluster`. With int8, eight streams each have room to grow to the full window (TensorFold reports 57 GiB free for their caches, 2.74 GiB for one at 262,144). Both-HCA NCCL (`rocep1s0f1,roceP2p1s0f1`, the base default) failed rank 1's boot once here (`ibv_query_port` errno 93); one HCA has been green since, and the base recipe measured one HCA within noise.
@@ -99,7 +99,18 @@ Two behaviours to plan around:
 
 ### Quality: tool calls
 
-`quality/t2.py --tasks tools`: 30 tool prompts, each non-streamed and streamed, exact tool name and exact argument set. **56 of 60** on TensorFold 0.6.6 with the patch ([`t2-tools/t2.json`](evidence/s10-tf066/t2-tools/t2.json), [`t2.jsonl`](evidence/s10-tf066/t2-tools/t2.jsonl)); the base recipe measured 52 of 60 on 0.6.2. All four misses are the same prompt pair, `t27` and `t47`, streamed and non-streamed: the model calls `translate_text` with the right text and language and adds `"formal": false`. That tool *declares* `formal` as an optional boolean, so the call is valid against its schema and the patch keeps it; the harness wants the exact key set and counts it as a miss. The two other 0.6.2 misses (a wrong tool on one prompt, a second unrequested call on another) did not recur. Streamed and non-streamed arguments were identical on all 30 prompts.
+`quality/t2.py --tasks tools`: 30 tool prompts, each non-streamed and streamed, exact tool name and exact argument set, judged by the sibling recipe's harness unchanged.
+
+| Serve | Score | Receipts |
+|---|---:|---|
+| 0.6.6 as shipped (`TOOL_SYSTEM` default) | **60 of 60** | [`tool-system/t2-tools/`](evidence/s10-tf066/tool-system/t2-tools/) |
+| 0.6.6 without the tool system message (`TOOL_SYSTEM=`) | 56 of 60 | [`t2-tools/`](evidence/s10-tf066/t2-tools/) |
+| base recipe, 0.6.2 | 52 of 60 | its `evidence/s8-quality/` |
+| vLLM NVFP4 sibling | 60 of 60 | its evidence |
+
+Without the instruction all four misses are one prompt pair, `t27` and `t47`, streamed and non-streamed: the model calls `translate_text` with the right text and language and adds `"formal": false`. That tool declares `formal` as an optional boolean, so the call is schema-valid; the harness wants the exact key set. The prompt the model sees is byte-identical to vLLM's (same chat template on all three checkpoints), and thinking mode, sampling and drafting do not change the call. These are the MLX 4-bit weights' choice. The 0.6.2 run also lost a prompt to a wrong tool and one to a second unrequested call; neither recurred on 0.6.6.
+
+What does change the call is being told. The recipe's default `TOOL_SYSTEM` ("Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.") is added by the server only to tool requests that carry no system message, so an agent framework with its own system prompt sees no difference. Five phrasings were tried ([`system-default/`](evidence/s10-tf066/system-default/)): two scored 60/60 with every optional-value prompt (`t01`, `t16`, `t28`, `t40`, `t41`) still correct, one over-suppressed and lost `t41`. Set `TOOL_SYSTEM=` in `.env.cluster` to serve without it.
 
 The base recipe's other quality gates (GSM8K-250 95.2%, IFEval-120 86.7%, JSON schema 30/30, needles 24/24 and 6/6 at 250k) were measured on TensorFold 0.6.2 with the same checkpoint and have not been rerun on 0.6.6.
 
@@ -168,7 +179,8 @@ python3 quality/t2.py --tasks tools --url http://127.0.0.1:8888 --out /tmp/t2-to
 | Setting | Value |
 |---|---|
 | Engine | TensorFold `cb2ebf0540f42604e2759b2ddef497861e928248` (v0.6.6), built into `tf-qwen38-flashnext:0.6.6` from `docker/Dockerfile` |
-| Patch | `patches/undeclared-tool-args-0.6.6.patch`: a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`) |
+| Patch | `patches/flashnext-tools-0.6.6.patch`: `--tool-system` on the CUDA server, and a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`) |
+| Tool system message | `Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none) |
 | Model | `TensorFold/Qwen3.8-Flash-Next-MLX-4bit-MTP` at `2b170fa6309d5d1ee380b35636075fac7945f286` |
 | Ranks | `--tp 2`: rank 1 on `spark2` first, then rank 0 (HTTP) on the head; rendezvous `10.100.8.1:29551` |
 | `--context` | 262144 (the native window, on both ranks) |
@@ -249,4 +261,4 @@ Every number in this README has a file under [`evidence/`](evidence/). This fork
 
 ## License
 
-The recipe's own files are MIT ([`LICENSE`](LICENSE)). `docker/patches/undeclared-tool-args-0.6.6.patch` changes TensorFold source: Apache-2.0, provenance and changes in [`docker/patches/README.md`](docker/patches/README.md). `tools/vendor/bench_concurrent.py` is TensorFold's, unmodified: MIT and Apache-2.0, per its header. Upstream's notice is in [`NOTICE`](NOTICE) and the license texts are in [`LICENSES/`](LICENSES/). Model weights follow the source model license on Hugging Face.
+The recipe's own files are MIT ([`LICENSE`](LICENSE)). `docker/patches/flashnext-tools-0.6.6.patch` changes TensorFold source: Apache-2.0, provenance and changes in [`docker/patches/README.md`](docker/patches/README.md). `tools/vendor/bench_concurrent.py` is TensorFold's, unmodified: MIT and Apache-2.0, per its header. Upstream's notice is in [`NOTICE`](NOTICE) and the license texts are in [`LICENSES/`](LICENSES/). Model weights follow the source model license on Hugging Face.

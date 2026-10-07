@@ -24,7 +24,7 @@ engine:
   commit: &tf_sha cb2ebf0540f42604e2759b2ddef497861e928248
   # sha256 of every shipped patch under docker/patches/ (run.sh PATCH_PINS must match; tests/ check the files).
   patches:
-    undeclared-tool-args-0.6.6.patch: 67c066c083da08786e9f4fac25e15cb8b4512f507ba3be40336999067f437c69
+    flashnext-tools-0.6.6.patch: 21965516eee351b4ce9de8a37ce49c02396a66eb2a4c19a6670eff622bc12e3f
 
 hardware:
   shape: 2x DGX Spark (GB10)
@@ -38,7 +38,7 @@ serve:
     SERVED_NAME: *served_name
     IMAGE: *image
     TF_SHA: *tf_sha
-    TF_PATCH: patches/undeclared-tool-args-0.6.6.patch
+    TF_PATCH: patches/flashnext-tools-0.6.6.patch
     CONTAINER_NAME: tf-qwen38-flashnext
     PORT: 8000
     MASTER_PORT: 29551
@@ -54,6 +54,7 @@ serve:
     PARALLEL: 1
     THINKING: 0
     MAX_TOKENS: 4096
+    TOOL_SYSTEM: "Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values."
     MEMORY_RESERVE_GIB: ""
     HF_CACHE: $HOME/.cache/huggingface
     SNAPSHOT_SHA: *revision
@@ -72,7 +73,8 @@ readme:
   # Rows of the README "Defaults" table. {NAME} is replaced by serve.env.NAME.
   defaults:
     - Engine: "TensorFold `{TF_SHA}` (v0.6.6), built into `{IMAGE}` from `docker/Dockerfile`"
-    - Patch: "`{TF_PATCH}`: a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`)"
+    - Patch: "`{TF_PATCH}`: `--tool-system` on the CUDA server, and a tool call keeps only the parameters the offered tool declares (`docker/patches/README.md`)"
+    - Tool system message: "`{TOOL_SYSTEM}` (added by the server to a chat request that offers tools and has no system message; `TOOL_SYSTEM=` serves none)"
     - Model: "`{MODEL}` at `{SNAPSHOT_SHA}`"
     - Ranks: "`--tp {TP}`: rank 1 on `{WORKER_HOST}` first, then rank 0 (HTTP) on the head; rendezvous `{HEAD_IP}:{MASTER_PORT}`"
     - "`--context`": "{CONTEXT} (the native window, on both ranks)"

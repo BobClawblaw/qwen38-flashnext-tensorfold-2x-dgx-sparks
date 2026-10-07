@@ -1,0 +1,787 @@
+{
+ "system": "Tool calls: include only the arguments the user explicitly provided or clearly implied. Never fill in optional arguments with default or guessed values.",
+ "correct": 60,
+ "n": 60,
+ "results": [
+  {
+   "id": "t00.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Wellington\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t00.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Wellington\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t01.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Tokyo\",\"unit\":\"fahrenheit\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t01.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Tokyo\",\"unit\":\"fahrenheit\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t02.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Berlin\",\"unit\":\"celsius\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t02.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"Berlin\",\"unit\":\"celsius\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t03.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":250,\"from_currency\":\"USD\",\"to_currency\":\"EUR\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t03.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":250,\"from_currency\":\"USD\",\"to_currency\":\"EUR\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t04.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":99.5,\"from_currency\":\"GBP\",\"to_currency\":\"JPY\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t04.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":99.5,\"from_currency\":\"GBP\",\"to_currency\":\"JPY\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t05.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":1200,\"from_currency\":\"NZD\",\"to_currency\":\"AUD\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t05.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":1200,\"from_currency\":\"NZD\",\"to_currency\":\"AUD\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t06.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Quarterly review\",\"date\":\"2026-10-14\",\"start_time\":\"15:30\",\"duration_minutes\":45}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t06.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Quarterly review\",\"date\":\"2026-10-14\",\"start_time\":\"15:30\",\"duration_minutes\":45}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t08.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Dentist\",\"date\":\"2027-01-05\",\"start_time\":\"08:15\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t08.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Dentist\",\"date\":\"2027-01-05\",\"start_time\":\"08:15\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t09.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"origin\":\"AKL\",\"destination\":\"SYD\",\"date\":\"2026-12-20\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t09.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"origin\":\"AKL\",\"destination\":\"SYD\",\"date\":\"2026-12-20\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t10.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"cabin\":\"business\",\"date\":\"2027-03-01\",\"destination\":\"LHR\",\"origin\":\"JFK\",\"passengers\":2}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t10.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"cabin\":\"business\",\"date\":\"2027-03-01\",\"destination\":\"LHR\",\"origin\":\"JFK\",\"passengers\":2}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t11.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"origin\":\"SFO\",\"destination\":\"NRT\",\"date\":\"2026-11-11\",\"passengers\":3,\"cabin\":\"economy\"}"
+    }
+   ],
+   "content": "I'll search for that flight for you.",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t11.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"origin\":\"SFO\",\"destination\":\"NRT\",\"date\":\"2026-11-11\",\"passengers\":3,\"cabin\":\"economy\"}"
+    }
+   ],
+   "content": "I'll search for that flight for you.\n\n",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t12.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "send_email",
+     "arguments": "{\"to\":\"bob@example.com\",\"subject\":\"Lunch\",\"body\":\"Are you free at noon?\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t12.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "send_email",
+     "arguments": "{\"to\":\"bob@example.com\",\"subject\":\"Lunch\",\"body\":\"Are you free at noon?\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t15.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "set_thermostat",
+     "arguments": "{\"room\":\"living room\",\"temperature_c\":21.5}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t15.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "set_thermostat",
+     "arguments": "{\"room\":\"living room\",\"temperature_c\":21.5}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t19.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "lookup_stock",
+     "arguments": "{\"exchange\":\"NASDAQ\",\"ticker\":\"AAPL\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t19.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "lookup_stock",
+     "arguments": "{\"exchange\":\"NASDAQ\",\"ticker\":\"AAPL\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t20.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "lookup_stock",
+     "arguments": "{\"ticker\":\"MSFT\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t20.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "lookup_stock",
+     "arguments": "{\"ticker\":\"MSFT\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t24.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "run_sql",
+     "arguments": "{\"query\":\"SELECT count(*) FROM orders\"}"
+    }
+   ],
+   "content": "I'll run that query for you.",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t24.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "run_sql",
+     "arguments": "{\"query\":\"SELECT count(*) FROM orders\"}"
+    }
+   ],
+   "content": "I'll run that query for you.\n\n",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t27.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "translate_text",
+     "arguments": "{\"text\":\"good morning, how are you?\",\"target_language\":\"es\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t27.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "translate_text",
+     "arguments": "{\"text\":\"good morning, how are you?\",\"target_language\":\"es\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t33.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "book_restaurant",
+     "arguments": "{\"restaurant\":\"Logan Brown\",\"date\":\"2026-10-31\",\"time\":\"19:30\",\"party_size\":4}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t33.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "book_restaurant",
+     "arguments": "{\"restaurant\":\"Logan Brown\",\"date\":\"2026-10-31\",\"time\":\"19:30\",\"party_size\":4}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t35.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "book_restaurant",
+     "arguments": "{\"restaurant\":\"Noma\",\"date\":\"2027-02-14\",\"time\":\"18:00\",\"party_size\":6}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t35.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "book_restaurant",
+     "arguments": "{\"restaurant\":\"Noma\",\"date\":\"2027-02-14\",\"time\":\"18:00\",\"party_size\":6}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t36.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "compute_loan",
+     "arguments": "{\"principal\":450000,\"annual_rate_percent\":6.25,\"years\":30}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t36.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "compute_loan",
+     "arguments": "{\"principal\":450000,\"annual_rate_percent\":6.25,\"years\":30}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t37.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "compute_loan",
+     "arguments": "{\"principal\":20000,\"annual_rate_percent\":4.9,\"years\":5}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t37.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "compute_loan",
+     "arguments": "{\"principal\":20000,\"annual_rate_percent\":4.9,\"years\":5}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t39.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/data/photos/cat.png\",\"width\":800,\"height\":600}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t39.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/data/photos/cat.png\",\"width\":800,\"height\":600}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t40.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/tmp/banner.jpg\",\"width\":1920,\"height\":480,\"keep_aspect\":false}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t40.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/tmp/banner.jpg\",\"width\":1920,\"height\":480,\"keep_aspect\":false}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t41.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/home/me/logo.webp\",\"width\":256,\"height\":256,\"keep_aspect\":true}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t41.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "resize_image",
+     "arguments": "{\"path\":\"/home/me/logo.webp\",\"width\":256,\"height\":256,\"keep_aspect\":true}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t42.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"S\u00e3o Paulo\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t42.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "get_weather",
+     "arguments": "{\"city\":\"S\u00e3o Paulo\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t43.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":3500,\"from_currency\":\"CHF\",\"to_currency\":\"USD\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t43.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "convert_currency",
+     "arguments": "{\"amount\":3500,\"from_currency\":\"CHF\",\"to_currency\":\"USD\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t44.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Team offsite\",\"date\":\"2026-10-20\",\"start_time\":\"10:00\",\"duration_minutes\":240,\"attendees\":[\"lee@example.com\"]}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t44.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "create_event",
+     "arguments": "{\"title\":\"Team offsite\",\"date\":\"2026-10-20\",\"start_time\":\"10:00\",\"duration_minutes\":240,\"attendees\":[\"lee@example.com\"]}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t45.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"cabin\":\"premium\",\"date\":\"2026-12-01\",\"destination\":\"FCO\",\"origin\":\"CDG\",\"passengers\":1}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t45.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "search_flights",
+     "arguments": "{\"cabin\":\"premium\",\"date\":\"2026-12-01\",\"destination\":\"FCO\",\"origin\":\"CDG\",\"passengers\":1}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t46.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "set_thermostat",
+     "arguments": "{\"room\":\"kitchen\",\"temperature_c\":20,\"mode\":\"auto\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t46.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "set_thermostat",
+     "arguments": "{\"room\":\"kitchen\",\"temperature_c\":20,\"mode\":\"auto\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t47.nonstream",
+   "stream": false,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "translate_text",
+     "arguments": "{\"text\":\"o\u00f9 est la gare ?\",\"target_language\":\"en\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  },
+  {
+   "id": "t47.stream",
+   "stream": true,
+   "correct": 1,
+   "calls": [
+    {
+     "name": "translate_text",
+     "arguments": "{\"text\":\"o\u00f9 est la gare ?\",\"target_language\":\"en\"}"
+    }
+   ],
+   "content": "",
+   "finish_reason": "tool_calls"
+  }
+ ]
+}

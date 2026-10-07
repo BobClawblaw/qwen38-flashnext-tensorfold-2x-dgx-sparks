@@ -96,7 +96,7 @@ class GuardTests(unittest.TestCase):
 
     def test_concurrent_profile_fills_unset_variables_only(self) -> None:
         out = self.accepted(PROFILE="concurrent").stdout
-        for want in ("profile=concurrent", "image=tf-qwen38-flashnext:0.6.6", "patch=patches/undeclared-tool-args-0.6.6.patch",
+        for want in ("profile=concurrent", "image=tf-qwen38-flashnext:0.6.6", "patch=patches/flashnext-tools-0.6.6.patch",
                      "parallel=8", "mtp=15@"):
             self.assertIn(want, out)
         out = self.accepted(PROFILE="concurrent", PARALLEL="4", MTP_DRAFTS="6").stdout
@@ -114,10 +114,10 @@ class GuardTests(unittest.TestCase):
             copy.write_text(_read("run.sh"))
             copy.chmod(0o755)
             env = {k: v for k, v in os.environ.items() if k not in OVERRIDES}
-            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", TF_PATCH="patches/undeclared-tool-args-0.6.6.patch", PARALLEL="8")
+            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", TF_PATCH="patches/flashnext-tools-0.6.6.patch", PARALLEL="8")
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertNotEqual(proc.returncode, 0)
-            pin = re.search(r"\[patches/undeclared-tool-args-0.6.6.patch\]=([0-9a-f]{64})", _read("run.sh")).group(1)
+            pin = re.search(r"\[patches/flashnext-tools-0.6.6.patch\]=([0-9a-f]{64})", _read("run.sh")).group(1)
             env.update(ROLE="worker", TF_PATCH_SHA=pin)
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -126,7 +126,7 @@ class GuardTests(unittest.TestCase):
     def test_shipped_patch_matches_its_pin(self) -> None:
         run = _read("run.sh")
         pins = dict(re.findall(r"^\s+\[(patches/[^\]]+)\]=([0-9a-f]{64})$", run, re.M))
-        self.assertIn("patches/undeclared-tool-args-0.6.6.patch", pins)
+        self.assertIn("patches/flashnext-tools-0.6.6.patch", pins)
         for rel, sha in pins.items():
             self.assertEqual(hashlib.sha256((ROOT / "docker" / rel).read_bytes()).hexdigest(), sha, rel)
             self.assertIn(sha, _read("recipe.yaml"), rel)
@@ -135,7 +135,7 @@ class GuardTests(unittest.TestCase):
             copy.write_text(run)
             copy.chmod(0o755)
             env = {k: v for k, v in os.environ.items() if k not in OVERRIDES}
-            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", ROLE="worker", TF_PATCH="patches/undeclared-tool-args-0.6.6.patch", TF_PATCH_SHA="b" * 64)
+            env.update(VALIDATE_ONLY="1", ENV_CLUSTER="/dev/null", ROLE="worker", TF_PATCH="patches/flashnext-tools-0.6.6.patch", TF_PATCH_SHA="b" * 64)
             proc = subprocess.run([str(copy)], capture_output=True, text=True, env=env, check=False)
             self.assertNotEqual(proc.returncode, 0)
             self.assertIn("not the pinned", proc.stderr)

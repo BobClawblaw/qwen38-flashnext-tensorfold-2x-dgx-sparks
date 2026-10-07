@@ -6,7 +6,7 @@ FROM ${BASE}
 ARG TF_REPO=https://github.com/ashhart/TensorFold.git
 ARG TF_SHA=cb2ebf0540f42604e2759b2ddef497861e928248
 # Optional patch on top of TF_SHA, a file under docker/patches/ (`none` = upstream as tagged).
-# patches/undeclared-tool-args-0.6.6.patch: a tool call keeps only the parameters the offered tool declares.
+# patches/flashnext-tools-0.6.6.patch: --tool-system on the CUDA server; a tool call keeps only declared parameters.
 ARG TF_PATCH=none
 ARG TF_PATCH_SHA=none
 # response_format / guided_* need xgrammar on BOTH ranks: rank 1 recompiles each grammar, and a missing
